@@ -1245,7 +1245,7 @@ public class BasicButtonLampGame : MonoBehaviour
             // Create a highlighted material
             Material highlightMaterial = new Material(originalButtonMaterial);
             highlightMaterial.EnableKeyword("_EMISSION");
-            highlightMaterial.SetColor("_EmissionColor", Color.yellow * 2f);
+            highlightMaterial.SetColor("_EmissionColor", Color.cyan * 2f);
 
             // Apply the highlighted material
             renderer.material = highlightMaterial;
