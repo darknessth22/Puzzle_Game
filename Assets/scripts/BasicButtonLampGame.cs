@@ -4,30 +4,16 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
+using System.Linq;
 
 public class BasicButtonLampGame : MonoBehaviour
 {
     // Static flag to ensure game state is reset properly
     public static bool ForceGameStateReset = false;
 
-    [Header("Button References")]
-    public GameObject button1;
-    public GameObject button2;
-    public GameObject button3;
-    public GameObject button4;
-    public GameObject button5;
+    // Buttons are now defined through the ButtonNumberMapping component in the Inspector
 
-    [Header("Lamp Base References")]
-    public GameObject lampBase1;
-    public GameObject lampBase2;
-    public GameObject lampBase3;
-    public GameObject lampBase4;
-    public GameObject lampBase5;
-    public GameObject lampBase6;
-    public GameObject lampBase7;
-    public GameObject lampBase8;
-    public GameObject lampBase9;
-    public GameObject lampBase10;
+    // Lamp bases are now defined through the ButtonNumberMapping component in the Inspector
 
     [Header("UI References")]
     public TextMeshProUGUI instructionText;
@@ -61,7 +47,8 @@ public class BasicButtonLampGame : MonoBehaviour
 
     [Header("Game Settings")]
     public int maxTries = 10;
-    public int totalButtonsToMatch = 5;
+    [Tooltip("If set to 0, will automatically use the number of available buttons")]
+    public int totalButtonsToMatch = 0;
 
     [Header("Win/Lose Sounds")]
     public AudioClip winSound;
@@ -88,6 +75,10 @@ public class BasicButtonLampGame : MonoBehaviour
     private List<GameObject> lockedButtons = new List<GameObject>();
     private List<GameObject> lockedLampBases = new List<GameObject>();
     private List<GameObject> correctlyMatchedButtons = new List<GameObject>();
+
+    // Button-to-number mapping
+    [Header("Button-Number Mapping")]
+    public ButtonNumberMapping buttonNumberMapping;
 
     // Analytics tracking
     private List<int> wrongButtonsPerTry = new List<int>();
@@ -116,22 +107,44 @@ public class BasicButtonLampGame : MonoBehaviour
 
     private void Start()
     {
-        // Initialize arrays for buttons and lamp bases if they're null
-        if (buttons == null)
-        {
-            buttons = new GameObject[5];
-        }
-
-        if (lampBases == null)
-        {
-            lampBases = new GameObject[10];
-        }
-
         // Always find references when starting, especially important after game restart
         FindAllReferences();
 
+        // Initialize button-number mapping if not already set
+        InitializeButtonNumberMapping();
+
         // Continue with the rest of the start method
         Start_Continued();
+    }
+
+    // Initialize the button-number mapping
+    private void InitializeButtonNumberMapping()
+    {
+        // If no mapping component exists, add one
+        if (buttonNumberMapping == null)
+        {
+            buttonNumberMapping = GetComponent<ButtonNumberMapping>();
+            if (buttonNumberMapping == null)
+            {
+                buttonNumberMapping = gameObject.AddComponent<ButtonNumberMapping>();
+                Debug.Log("Added ButtonNumberMapping component");
+            }
+        }
+
+        // Make sure the mapping dictionaries are initialized
+        buttonNumberMapping.RebuildMappingDictionaries();
+
+        // Log the current mappings
+        List<ButtonNumberPair> pairs = buttonNumberMapping.GetAllPairs();
+        Debug.Log($"Using {pairs.Count} button-number mappings from Inspector");
+
+        foreach (var pair in pairs)
+        {
+            if (pair.button != null)
+            {
+                Debug.Log($"Mapping: Button {pair.button.name} -> Number {pair.numberValue}");
+            }
+        }
     }
 
     // Find all references in one go
@@ -144,26 +157,22 @@ public class BasicButtonLampGame : MonoBehaviour
     // Set up game manager references for all buttons and lamp bases
     private void SetupGameManagerReferences()
     {
+        // Find all buttons in the scene using the tag
+        GameObject[] allButtons = GameObject.FindGameObjectsWithTag("Button");
+
         // Set up references for all buttons
-        GameObject[] allButtons = new GameObject[] { button1, button2, button3, button4, button5 };
         foreach (GameObject btn in allButtons)
         {
-            if (btn != null)
+            BasicButton basicButton = btn.GetComponent<BasicButton>();
+            if (basicButton != null)
             {
-                BasicButton basicButton = btn.GetComponent<BasicButton>();
-                if (basicButton != null)
-                {
-                    basicButton.gameManager = this;
-                }
+                basicButton.gameManager = this;
+                Debug.Log($"Set game manager reference for button: {btn.name}");
             }
         }
 
-        // Set up references for all lamp bases
-        GameObject[] allLampBases = new GameObject[]
-        {
-            lampBase1, lampBase2, lampBase3, lampBase4, lampBase5,
-            lampBase6, lampBase7, lampBase8, lampBase9, lampBase10
-        };
+        // Find all lamp bases in the scene using the tag
+        GameObject[] allLampBases = GameObject.FindGameObjectsWithTag("LampBase");
 
         foreach (GameObject lamp in allLampBases)
         {
@@ -173,6 +182,7 @@ public class BasicButtonLampGame : MonoBehaviour
                 if (basicNumber != null)
                 {
                     basicNumber.gameManager = this;
+                    Debug.Log($"Set game manager reference for lamp base: {lamp.name}");
                 }
             }
         }
@@ -200,6 +210,37 @@ public class BasicButtonLampGame : MonoBehaviour
         currentTryFailed = false;
         currentTryWrongButtons = 0;
         wrongButtonsPerTry.Clear();
+
+        // If totalButtonsToMatch is 0, automatically use the number of available buttons
+        if (totalButtonsToMatch == 0)
+        {
+            // Count buttons from ButtonNumberMapping
+            int buttonCount = 0;
+
+            if (buttonNumberMapping != null)
+            {
+                // Count unique buttons in the mapping
+                HashSet<GameObject> uniqueButtons = new HashSet<GameObject>();
+                foreach (var pair in buttonNumberMapping.buttonNumberPairs)
+                {
+                    if (pair.button != null)
+                    {
+                        uniqueButtons.Add(pair.button);
+                    }
+                }
+                buttonCount = uniqueButtons.Count;
+            }
+
+            // If no buttons found in mapping, try to find buttons with the Button tag
+            if (buttonCount == 0)
+            {
+                GameObject[] taggedButtons = GameObject.FindGameObjectsWithTag("Button");
+                buttonCount = taggedButtons.Length;
+            }
+
+            totalButtonsToMatch = buttonCount;
+            Debug.Log($"Automatically set totalButtonsToMatch to {totalButtonsToMatch} based on available buttons");
+        }
 
         // Reset the force reset flag
         ForceGameStateReset = false;
@@ -531,15 +572,37 @@ public class BasicButtonLampGame : MonoBehaviour
         }
 
         // Reset all button materials
-        foreach (GameObject button in new List<GameObject> { button1, button2, button3, button4, button5 })
+        // First try to get buttons from ButtonNumberMapping
+        List<GameObject> buttonList = new List<GameObject>();
+
+        if (buttonNumberMapping != null)
         {
-            if (button != null)
+            // Get unique buttons from the mapping
+            HashSet<GameObject> uniqueButtons = new HashSet<GameObject>();
+            foreach (var pair in buttonNumberMapping.buttonNumberPairs)
             {
-                Renderer renderer = button.GetComponent<Renderer>();
-                if (renderer != null && originalButtonMaterial != null)
+                if (pair.button != null)
                 {
-                    renderer.material = originalButtonMaterial;
+                    uniqueButtons.Add(pair.button);
                 }
+            }
+            buttonList.AddRange(uniqueButtons);
+        }
+
+        // If no buttons found in mapping, try to find buttons with the Button tag
+        if (buttonList.Count == 0)
+        {
+            GameObject[] taggedButtons = GameObject.FindGameObjectsWithTag("Button");
+            buttonList.AddRange(taggedButtons);
+        }
+
+        foreach (GameObject button in buttonList)
+        {
+            Renderer renderer = button.GetComponent<Renderer>();
+            if (renderer != null && originalButtonMaterial != null)
+            {
+                renderer.material = originalButtonMaterial;
+                Debug.Log($"Reset material for button: {button.name}");
             }
         }
 
@@ -581,17 +644,15 @@ public class BasicButtonLampGame : MonoBehaviour
             }
         }
 
-        // Reset all lamp base children
-        ResetLampBaseChild(lampBase1);
-        ResetLampBaseChild(lampBase2);
-        ResetLampBaseChild(lampBase3);
-        ResetLampBaseChild(lampBase4);
-        ResetLampBaseChild(lampBase5);
-        ResetLampBaseChild(lampBase6);
-        ResetLampBaseChild(lampBase7);
-        ResetLampBaseChild(lampBase8);
-        ResetLampBaseChild(lampBase9);
-        ResetLampBaseChild(lampBase10);
+        // Reset all lamp bases using the tag
+        GameObject[] allLampBases = GameObject.FindGameObjectsWithTag("LampBase");
+        foreach (GameObject lampBase in allLampBases)
+        {
+            if (lampBase != null)
+            {
+                ResetLampBaseChild(lampBase);
+            }
+        }
 
         // Clear all locked lists
         lockedButtons.Clear();
@@ -635,56 +696,82 @@ public class BasicButtonLampGame : MonoBehaviour
     // Get the correct number for a button
     private int GetCorrectNumberForButton(GameObject button)
     {
-        int result = -1;
+        if (button == null) return -1;
 
-        if (button == button1) result = 5;
-        else if (button == button2) result = 6;
-        else if (button == button3) result = 7;
-        else if (button == button4) result = 8;
-        else if (button == button5) result = 9;
-
-        Debug.Log($"GetCorrectNumberForButton: Button {button.name} maps to lamp number {result}");
-
-        if (result == -1)
+        // First check our button-number mapping from the Inspector
+        if (buttonNumberMapping != null)
         {
-            // Try to identify the button by name if reference comparison failed
-            string buttonName = button.name.ToLower();
-            if (buttonName.Contains("1") || buttonName.Contains("one")) result = 5;
-            else if (buttonName.Contains("2") || buttonName.Contains("two")) result = 6;
-            else if (buttonName.Contains("3") || buttonName.Contains("three")) result = 7;
-            else if (buttonName.Contains("4") || buttonName.Contains("four")) result = 8;
-            else if (buttonName.Contains("5") || buttonName.Contains("five")) result = 9;
-
-            if (result != -1)
+            int numberValue = buttonNumberMapping.GetNumberForButton(button);
+            if (numberValue != -1)
             {
-                Debug.Log($"Identified button by name: {buttonName} -> lamp number {result}");
-            }
-            else
-            {
-                Debug.LogWarning($"Could not determine lamp number for button: {button.name}");
+                Debug.Log($"GetCorrectNumberForButton: Button {button.name} maps to lamp number {numberValue} (from mapping)");
+                return numberValue;
             }
         }
 
-        return result;
+        // Check if there's a SimpleDemoManager with mappings
+        SimpleDemoManager demoManager = FindObjectOfType<SimpleDemoManager>();
+        if (demoManager != null && demoManager.buttonNumberMapping != null)
+        {
+            int numberValue = demoManager.GetNumberForButton(button);
+            if (numberValue != -1)
+            {
+                Debug.Log($"GetCorrectNumberForButton: Button {button.name} maps to lamp number {numberValue} (from demo manager)");
+                return numberValue;
+            }
+        }
+
+        // No mapping found in the Inspector or from the demo manager
+        Debug.LogWarning($"Could not determine lamp number for button: {button.name}. Please define mapping in the Inspector.");
+
+        return -1; // No mapping found
     }
 
     // Get lamp base by number
     private GameObject GetLampBaseByNumber(int number)
     {
-        switch (number)
+        if (number < 1 || number > 10)
         {
-            case 1: return lampBase1;
-            case 2: return lampBase2;
-            case 3: return lampBase3;
-            case 4: return lampBase4;
-            case 5: return lampBase5;
-            case 6: return lampBase6;
-            case 7: return lampBase7;
-            case 8: return lampBase8;
-            case 9: return lampBase9;
-            case 10: return lampBase10;
-            default: return null;
+            Debug.LogWarning($"Invalid lamp number: {number}. Must be between 1 and 10.");
+            return null;
         }
+
+        // First check if we have a mapping in the ButtonNumberMapping component
+        if (buttonNumberMapping != null)
+        {
+            // Look for a mapping with this number value
+            foreach (var pair in buttonNumberMapping.buttonNumberPairs)
+            {
+                if (pair.numberValue == number && pair.numberObject != null)
+                {
+                    // Get the parent of the number object, which should be the lamp base
+                    Transform parent = pair.numberObject.transform.parent;
+                    if (parent != null)
+                    {
+                        return parent.gameObject;
+                    }
+                    else
+                    {
+                        // If the number object has no parent, it might be the lamp base itself
+                        return pair.numberObject;
+                    }
+                }
+            }
+        }
+
+        // If we didn't find a mapping, try to find a lamp base with the appropriate tag and name
+        GameObject[] lampBases = GameObject.FindGameObjectsWithTag("LampBase");
+        foreach (GameObject lampBase in lampBases)
+        {
+            // Check if the name contains the number
+            if (lampBase.name.Contains(number.ToString()))
+            {
+                return lampBase;
+            }
+        }
+
+        Debug.LogWarning($"No lamp base found for number {number}. Please define it in the Inspector.");
+        return null;
     }
 
     // Get number object from lamp base
@@ -692,12 +779,25 @@ public class BasicButtonLampGame : MonoBehaviour
     {
         if (lampBase == null) return null;
 
+        // First try to get the number object from the BasicNumber component
         BasicNumber basicNumber = lampBase.GetComponent<BasicNumber>();
-        if (basicNumber != null)
+        if (basicNumber != null && basicNumber.numberObject != null)
         {
             return basicNumber.numberObject;
         }
 
+        // If that fails, try to find a child with "Number" in its name
+        Transform[] children = lampBase.GetComponentsInChildren<Transform>();
+        foreach (Transform child in children)
+        {
+            if (child.gameObject != lampBase && (child.name.Contains("Number") || child.name.Contains("number")))
+            {
+                return child.gameObject;
+            }
+        }
+
+        // If no specific number object is found, return null
+        Debug.LogWarning($"Could not find number object in lamp base: {lampBase.name}");
         return null;
     }
 
@@ -873,34 +973,31 @@ public class BasicButtonLampGame : MonoBehaviour
     // Check if the button and number value match
     private bool IsCorrectMatch(GameObject button, int numberValue)
     {
-        // Fixed mappings:
-        // Button 1 → Number 5
-        // Button 2 → Number 6
-        // Button 3 → Number 7
-        // Button 4 → Number 8
-        // Button 5 → Number 9
+        if (button == null) return false;
 
         Debug.Log($"Checking match: Button={button.name}, NumberValue={numberValue}");
 
-        if (button == button1 && numberValue == 5) {
-            Debug.Log("Match found: Button 1 → Number 5");
-            return true;
+        // First check our button-number mapping from the Inspector
+        if (buttonNumberMapping != null)
+        {
+            bool isMatch = buttonNumberMapping.IsCorrectMatch(button, numberValue);
+            if (isMatch)
+            {
+                Debug.Log($"Match found: Button {button.name} → Number {numberValue} (from mapping)");
+                return true;
+            }
         }
-        if (button == button2 && numberValue == 6) {
-            Debug.Log("Match found: Button 2 → Number 6");
-            return true;
-        }
-        if (button == button3 && numberValue == 7) {
-            Debug.Log("Match found: Button 3 → Number 7");
-            return true;
-        }
-        if (button == button4 && numberValue == 8) {
-            Debug.Log("Match found: Button 4 → Number 8");
-            return true;
-        }
-        if (button == button5 && numberValue == 9) {
-            Debug.Log("Match found: Button 5 → Number 9");
-            return true;
+
+        // Check if there's a SimpleDemoManager with mappings
+        SimpleDemoManager demoManager = FindObjectOfType<SimpleDemoManager>();
+        if (demoManager != null && demoManager.buttonNumberMapping != null)
+        {
+            bool isMatch = demoManager.IsCorrectMatch(button, numberValue);
+            if (isMatch)
+            {
+                Debug.Log($"Match found: Button {button.name} → Number {numberValue} (from demo manager)");
+                return true;
+            }
         }
 
         Debug.Log("No match found");

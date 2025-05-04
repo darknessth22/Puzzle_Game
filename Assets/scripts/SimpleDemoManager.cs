@@ -9,19 +9,9 @@ public class SimpleDemoManager : MonoBehaviour
     // Static flag to indicate the game is being restarted
     public static bool IsGameRestarting = false;
 
-    [Header("Button References")]
-    public GameObject button1;
-    public GameObject button2;
-    public GameObject button3;
-    public GameObject button4;
-    public GameObject button5;
+    // Buttons are now defined through the ButtonNumberMapping component in the Inspector
 
-    [Header("Number References")]
-    public GameObject numberObject5;  // The actual number object inside lamp 5
-    public GameObject numberObject6;  // The actual number object inside lamp 6
-    public GameObject numberObject7;  // The actual number object inside lamp 7
-    public GameObject numberObject8;  // The actual number object inside lamp 8
-    public GameObject numberObject9;  // The actual number object inside lamp 9
+    // Number objects are now defined through the ButtonNumberMapping component in the Inspector
 
     [Header("Demo Timing")]
     public float initialSceneDelay = 2.0f; // Delay after scene loads before starting demo
@@ -33,12 +23,9 @@ public class SimpleDemoManager : MonoBehaviour
     public AudioClip backgroundMusic;     // Background music to play during the game
     public float musicVolume = 0.5f;      // Volume for background music
 
-    [Header("Demo Sequence Settings")]
-    public bool useRandomSequence = true; // Whether to use a random sequence instead of the defined sequence
-    public int randomDemoCount = 5;       // How many random demonstrations to show
-
     [Header("Demo Sequence")]
-    public GameObject[] demoSequence;     // Custom sequence of buttons to demonstrate (used if useRandomSequence is false)
+    [Tooltip("If left empty, will automatically use all buttons from ButtonNumberMapping")]
+    public GameObject[] demoSequence;     // Custom sequence of buttons to demonstrate
 
     [Header("UI")]
     public TextMeshProUGUI instructionText;
@@ -65,6 +52,64 @@ public class SimpleDemoManager : MonoBehaviour
     // Audio source for background music
     private AudioSource musicSource;
 
+    // Button-to-number mapping component
+    [Header("Button-Number Mapping")]
+    public ButtonNumberMapping buttonNumberMapping;
+
+    // Public method to get the number associated with a button
+    public int GetNumberForButton(GameObject button)
+    {
+        // First try our own ButtonNumberMapping
+        if (buttonNumberMapping != null)
+        {
+            int numberValue = buttonNumberMapping.GetNumberForButton(button);
+            if (numberValue != -1)
+            {
+                return numberValue;
+            }
+        }
+
+        // If not found, try the BasicButtonLampGame's ButtonNumberMapping
+        BasicButtonLampGame gameManager = FindObjectOfType<BasicButtonLampGame>();
+        if (gameManager != null && gameManager.buttonNumberMapping != null)
+        {
+            int numberValue = gameManager.buttonNumberMapping.GetNumberForButton(button);
+            if (numberValue != -1)
+            {
+                return numberValue;
+            }
+        }
+
+        return -1; // Return -1 if no mapping exists
+    }
+
+    // Public method to check if a button and number match according to the current mapping
+    public bool IsCorrectMatch(GameObject button, int numberValue)
+    {
+        // First try our own ButtonNumberMapping
+        if (buttonNumberMapping != null)
+        {
+            bool isMatch = buttonNumberMapping.IsCorrectMatch(button, numberValue);
+            if (isMatch)
+            {
+                return true;
+            }
+        }
+
+        // If not found, try the BasicButtonLampGame's ButtonNumberMapping
+        BasicButtonLampGame gameManager = FindObjectOfType<BasicButtonLampGame>();
+        if (gameManager != null && gameManager.buttonNumberMapping != null)
+        {
+            bool isMatch = gameManager.buttonNumberMapping.IsCorrectMatch(button, numberValue);
+            if (isMatch)
+            {
+                return true;
+            }
+        }
+
+        return false; // No mapping exists, so it's not a correct match
+    }
+
     private void Start()
     {
         Debug.Log("SimpleDemoManager Start - IsGameRestarting: " + IsGameRestarting);
@@ -78,52 +123,44 @@ public class SimpleDemoManager : MonoBehaviour
             Debug.Log("Cleared instruction text at start");
         }
 
-        // Create an array of all available buttons
-        GameObject[] allButtons = new GameObject[] { button1, button2, button3, button4, button5 };
+        // Get buttons from ButtonNumberMapping
+        List<GameObject> buttonList = new List<GameObject>();
+
+        if (buttonNumberMapping != null)
+        {
+            // Get unique buttons from the mapping
+            HashSet<GameObject> uniqueButtons = new HashSet<GameObject>();
+            foreach (var pair in buttonNumberMapping.buttonNumberPairs)
+            {
+                if (pair.button != null)
+                {
+                    uniqueButtons.Add(pair.button);
+                }
+            }
+            buttonList.AddRange(uniqueButtons);
+        }
+
+        // If no buttons found in mapping, try to find buttons with the Button tag
+        if (buttonList.Count == 0)
+        {
+            GameObject[] taggedButtons = GameObject.FindGameObjectsWithTag("Button");
+            buttonList.AddRange(taggedButtons);
+        }
+
+        GameObject[] allButtons = buttonList.ToArray();
 
         // Set up game manager references for all buttons
         SetupButtonGameManagerReferences();
 
-        // If using random sequence, create it now
-        if (useRandomSequence)
+        // Initialize button-number mapping if not already set
+        InitializeButtonNumberMapping();
+
+        // Use default sequence if none is provided
+        if (demoSequence == null || demoSequence.Length == 0)
         {
-            // Create a list of available buttons (removing any null ones)
-            List<GameObject> availableButtons = new List<GameObject>();
-            foreach (GameObject btn in allButtons)
-            {
-                if (btn != null) availableButtons.Add(btn);
-            }
-
-            // Determine how many demonstrations to show
-            int demoCount = Mathf.Min(randomDemoCount, availableButtons.Count);
-
-            // Create a new random sequence
-            List<GameObject> randomSequence = new List<GameObject>();
-
-            // Shuffle the available buttons
-            for (int i = 0; i < demoCount; i++)
-            {
-                if (availableButtons.Count == 0) break;
-
-                // Pick a random button from the available ones
-                int randomIndex = Random.Range(0, availableButtons.Count);
-                GameObject randomButton = availableButtons[randomIndex];
-
-                // Add it to our sequence and remove from available buttons
-                randomSequence.Add(randomButton);
-                availableButtons.RemoveAt(randomIndex);
-            }
-
-            // Set the demo sequence to our random sequence
-            demoSequence = randomSequence.ToArray();
-            Debug.Log($"Created random demo sequence with {demoSequence.Length} buttons");
-        }
-        // Otherwise, check if we need to create a default sequence
-        else if (demoSequence == null || demoSequence.Length == 0)
-        {
-            // If no custom sequence is provided, create a default one
+            // If no custom sequence is provided, create a default one with all buttons
             demoSequence = allButtons;
-            Debug.Log("Using default demo sequence");
+            Debug.Log("Using default demo sequence with all buttons");
         }
 
         // Setup background music
@@ -209,23 +246,43 @@ public class SimpleDemoManager : MonoBehaviour
 
             Debug.Log($"Demonstrating button: {button.name}");
 
-            // Get the corresponding number for this button
+            // Get the corresponding number for this button from our mapping
             int numberValue = -1;
-            if (button == button1) numberValue = 5;
-            else if (button == button2) numberValue = 6;
-            else if (button == button3) numberValue = 7;
-            else if (button == button4) numberValue = 8;
-            else if (button == button5) numberValue = 9;
-
-            // Get the corresponding number object
             GameObject numberObject = null;
-            switch (numberValue)
+
+            // First try to get mapping from this SimpleDemoManager's ButtonNumberMapping
+            if (buttonNumberMapping != null)
             {
-                case 5: numberObject = numberObject5; break;
-                case 6: numberObject = numberObject6; break;
-                case 7: numberObject = numberObject7; break;
-                case 8: numberObject = numberObject8; break;
-                case 9: numberObject = numberObject9; break;
+                numberValue = buttonNumberMapping.GetNumberForButton(button);
+                numberObject = buttonNumberMapping.GetNumberObjectForButton(button);
+
+                if (numberValue != -1 && numberObject != null)
+                {
+                    Debug.Log($"Using mapping from SimpleDemoManager: Button {button.name} -> Number {numberValue}");
+                }
+            }
+
+            // If not found, try to get mapping from BasicButtonLampGame
+            if (numberValue == -1 || numberObject == null)
+            {
+                BasicButtonLampGame gameManager = FindObjectOfType<BasicButtonLampGame>();
+                if (gameManager != null && gameManager.buttonNumberMapping != null)
+                {
+                    numberValue = gameManager.buttonNumberMapping.GetNumberForButton(button);
+                    numberObject = gameManager.buttonNumberMapping.GetNumberObjectForButton(button);
+
+                    if (numberValue != -1 && numberObject != null)
+                    {
+                        Debug.Log($"Using mapping from BasicButtonLampGame: Button {button.name} -> Number {numberValue}");
+                    }
+                }
+            }
+
+            // If still not found, skip this button
+            if (numberValue == -1 || numberObject == null)
+            {
+                Debug.LogWarning($"No mapping found for button {button.name} in any ButtonNumberMapping component");
+                continue; // Skip this button if no mapping is found
             }
 
             // Highlight the button with cyan color
@@ -437,19 +494,37 @@ public class SimpleDemoManager : MonoBehaviour
             return;
         }
 
-        // Set up references for all buttons
-        GameObject[] allButtons = new GameObject[] { button1, button2, button3, button4, button5 };
+        // Get buttons from ButtonNumberMapping
+        List<GameObject> buttonList = new List<GameObject>();
 
-        foreach (GameObject btn in allButtons)
+        if (buttonNumberMapping != null)
         {
-            if (btn != null)
+            // Get unique buttons from the mapping
+            HashSet<GameObject> uniqueButtons = new HashSet<GameObject>();
+            foreach (var pair in buttonNumberMapping.buttonNumberPairs)
             {
-                BasicButton basicButton = btn.GetComponent<BasicButton>();
-                if (basicButton != null)
+                if (pair.button != null)
                 {
-                    basicButton.gameManager = gameManager;
-                    Debug.Log($"Set game manager reference for button: {btn.name}");
+                    uniqueButtons.Add(pair.button);
                 }
+            }
+            buttonList.AddRange(uniqueButtons);
+        }
+
+        // If no buttons found in mapping, try to find buttons with the Button tag
+        if (buttonList.Count == 0)
+        {
+            GameObject[] taggedButtons = GameObject.FindGameObjectsWithTag("Button");
+            buttonList.AddRange(taggedButtons);
+        }
+
+        foreach (GameObject btn in buttonList)
+        {
+            BasicButton basicButton = btn.GetComponent<BasicButton>();
+            if (basicButton != null)
+            {
+                basicButton.gameManager = gameManager;
+                Debug.Log($"Set game manager reference for button: {btn.name}");
             }
         }
 
@@ -533,6 +608,77 @@ public class SimpleDemoManager : MonoBehaviour
     private void ResetAllObjects()
     {
         Debug.Log("Resetting all objects to original state");
+
+        // Reset all number objects from ButtonNumberMapping
+        if (buttonNumberMapping != null)
+        {
+            foreach (var pair in buttonNumberMapping.buttonNumberPairs)
+            {
+                if (pair.numberObject != null)
+                {
+                    Renderer renderer = pair.numberObject.GetComponent<Renderer>();
+                    if (renderer != null)
+                    {
+                        // Create a default material if needed
+                        Material defaultMaterial = new Material(Shader.Find("Standard"));
+                        defaultMaterial.color = Color.white;
+                        renderer.material = defaultMaterial;
+                        Debug.Log($"Reset material for number object: {pair.numberObject.name}");
+                    }
+                }
+            }
+        }
+
+        // Also try to reset from BasicButtonLampGame's ButtonNumberMapping
+        BasicButtonLampGame gameManager = FindObjectOfType<BasicButtonLampGame>();
+        if (gameManager != null && gameManager.buttonNumberMapping != null)
+        {
+            foreach (var pair in gameManager.buttonNumberMapping.buttonNumberPairs)
+            {
+                if (pair.numberObject != null)
+                {
+                    Renderer renderer = pair.numberObject.GetComponent<Renderer>();
+                    if (renderer != null)
+                    {
+                        // Create a default material if needed
+                        Material defaultMaterial = new Material(Shader.Find("Standard"));
+                        defaultMaterial.color = Color.white;
+                        renderer.material = defaultMaterial;
+                        Debug.Log($"Reset material for number object from game manager: {pair.numberObject.name}");
+                    }
+                }
+            }
+        }
+    }
+
+    // Initialize the button-number mapping
+    private void InitializeButtonNumberMapping()
+    {
+        // If no mapping component exists, add one
+        if (buttonNumberMapping == null)
+        {
+            buttonNumberMapping = GetComponent<ButtonNumberMapping>();
+            if (buttonNumberMapping == null)
+            {
+                buttonNumberMapping = gameObject.AddComponent<ButtonNumberMapping>();
+                Debug.Log("Added ButtonNumberMapping component to SimpleDemoManager");
+            }
+        }
+
+        // Make sure the mapping dictionaries are initialized
+        buttonNumberMapping.RebuildMappingDictionaries();
+
+        // Log the current mappings
+        List<ButtonNumberPair> pairs = buttonNumberMapping.GetAllPairs();
+        Debug.Log($"Using {pairs.Count} button-number mappings from Inspector");
+
+        foreach (var pair in pairs)
+        {
+            if (pair.button != null)
+            {
+                Debug.Log($"Mapping: Button {pair.button.name} -> Number {pair.numberValue}");
+            }
+        }
     }
 
     // Public method to completely reset the demo
@@ -547,6 +693,9 @@ public class SimpleDemoManager : MonoBehaviour
 
         // Reset all objects
         ResetAllObjects();
+
+        // Reinitialize button-number mapping
+        InitializeButtonNumberMapping();
 
         // Start the demo sequence again
         StartCoroutine(StartDemoWithDelay());
