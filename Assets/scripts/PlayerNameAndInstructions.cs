@@ -33,13 +33,13 @@ public class PlayerNameAndInstructions : MonoBehaviour
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
 
-        // Check if we have a PersistentGameManager
-        PersistentGameManager persistentManager = FindObjectOfType<PersistentGameManager>();
-        if (persistentManager != null && persistentManager.customCursor != null)
+        // Use the GameInitializer for cursor management instead of PersistentGameManager
+        GameInitializer gameInitializer = FindObjectOfType<GameInitializer>();
+        if (gameInitializer != null && gameInitializer.customCursor != null)
         {
-            // Use the persistent manager's cursor
-            persistentManager.customCursor.SetCustomCursor();
-            Debug.Log("Using PersistentGameManager's cursor in PlayerNameAndInstructions");
+            // Use the game initializer's cursor
+            gameInitializer.customCursor.SetCustomCursor();
+            Debug.Log("Using GameInitializer's cursor in PlayerNameAndInstructions");
         }
 
         // Make sure panels are initially hidden
@@ -201,13 +201,17 @@ public class PlayerNameAndInstructions : MonoBehaviour
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
 
-            // Check if we have a PersistentGameManager
-            PersistentGameManager persistentManager = FindObjectOfType<PersistentGameManager>();
-            if (persistentManager == null)
+            // Use GameInitializer for cursor management instead of PersistentGameManager
+            GameInitializer gameInitializer = FindObjectOfType<GameInitializer>();
+            if (gameInitializer == null)
             {
-                // Create a persistent game manager if one doesn't exist
-                GameObject managerObject = new GameObject("PersistentGameManager");
-                persistentManager = managerObject.AddComponent<PersistentGameManager>();
+                // Create a game initializer if one doesn't exist
+                GameObject initializerObject = new GameObject("GameInitializer");
+                gameInitializer = initializerObject.AddComponent<GameInitializer>();
+
+                // Add CustomCursor component
+                CustomCursor customCursor = initializerObject.AddComponent<CustomCursor>();
+                gameInitializer.customCursor = customCursor;
 
                 // Find any cursor textures in the project
                 Texture2D[] cursorTextures = Resources.FindObjectsOfTypeAll<Texture2D>();
@@ -215,29 +219,38 @@ public class PlayerNameAndInstructions : MonoBehaviour
                 {
                     if (texture.name.Contains("Cursor"))
                     {
-                        persistentManager.cursorTexture = texture;
+                        gameInitializer.cursorTexture = texture;
+                        customCursor.cursorTexture = texture;
                         break;
                     }
                 }
 
                 // If no cursor texture found, we'll use default cursor
-                if (persistentManager.cursorTexture == null)
+                if (gameInitializer.cursorTexture == null)
                 {
                     Debug.LogWarning("No cursor texture found. Using default cursor.");
                 }
-
-                DontDestroyOnLoad(managerObject);
             }
             else
             {
                 // Reset game state when starting a new game from the main menu
                 Debug.Log("Resetting game state before loading game scene");
 
-                // Reset static variables
-                GameStateResetter.ResetAllStaticVariables();
+                // Reset static variables if GameStateResetter exists
+                try
+                {
+                    // This might throw an error if GameStateResetter doesn't exist
+                    // We'll catch it and continue
+                    GameStateResetter.ResetAllStaticVariables();
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning("Could not reset static variables: " + e.Message);
+                }
 
-                // Call the reset method on the persistent manager
-                persistentManager.ResetGameState();
+                // Set static flags to ensure proper reset when the scene loads
+                BasicButtonLampGame.ForceGameStateReset = true;
+                SimpleDemoManager.IsGameRestarting = true;
             }
 
             // Load the game scene

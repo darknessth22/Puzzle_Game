@@ -5,17 +5,6 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 
-// Static class for game state reset
-public static class GameStateResetter
-{
-    public static void ResetAllStaticVariables()
-    {
-        // Reset all static variables here
-        BasicButtonLampGame.ForceGameStateReset = true;
-        SimpleDemoManager.IsGameRestarting = true;
-    }
-}
-
 public class BasicButtonLampGame : MonoBehaviour
 {
     // Static flag to ensure game state is reset properly
@@ -83,8 +72,8 @@ public class BasicButtonLampGame : MonoBehaviour
     // State tracking
     private GameObject selectedButton = null;
     private Material originalButtonMaterial = null;
-    public int currentTries; // Made public for PersistentGameManager access
-    public int currentProgress; // Made public for PersistentGameManager access
+    public int currentTries;
+    public int currentProgress;
     private bool gameOver = false;
     private bool currentTryFailed = false;
 
@@ -148,18 +137,6 @@ public class BasicButtonLampGame : MonoBehaviour
     // Find all references in one go
     private void FindAllReferences()
     {
-        // Find all button and lamp references first using tags
-        FindButtonAndLampReferences();
-
-        // Then find all UI references
-        FindAllUIReferences();
-
-        // Double check that we found all button and lamp references
-        if (button1 == null || button2 == null || button3 == null || button4 == null || button5 == null)
-        {
-            FindButtonAndLampReferences();
-        }
-
         // Set up game manager references for all buttons and lamp bases
         SetupGameManagerReferences();
     }
@@ -533,22 +510,97 @@ public class BasicButtonLampGame : MonoBehaviour
     {
         Debug.Log("StartNextTry called - resetting game state for next try");
 
-        // Reset game state for next try
-        currentProgress = 0;
+        // Hide all panels
+        if (winPanel != null) winPanel.SetActive(false);
+        if (losePanel != null) losePanel.SetActive(false);
+        if (analyticsPanel != null) analyticsPanel.SetActive(false);
+        if (tryAnalyticsPanel != null) tryAnalyticsPanel.SetActive(false);
+
+        // Reset game state flags
+        gameOver = false;
+        ForceGameStateReset = false;
         currentTryFailed = false;
         currentTryWrongButtons = 0;
-        correctlyMatchedButtons.Clear();
+        currentProgress = 0;
+
+        // Reset button selection
+        if (selectedButton != null)
+        {
+            ResetButtonAppearance(selectedButton);
+            selectedButton = null;
+        }
+
+        // Reset all button materials
+        foreach (GameObject button in new List<GameObject> { button1, button2, button3, button4, button5 })
+        {
+            if (button != null)
+            {
+                Renderer renderer = button.GetComponent<Renderer>();
+                if (renderer != null && originalButtonMaterial != null)
+                {
+                    renderer.material = originalButtonMaterial;
+                }
+            }
+        }
+
+        // Reset all number materials directly
+        foreach (var entry in originalNumberMaterials)
+        {
+            GameObject numberObject = entry.Key;
+            Material originalMaterial = entry.Value;
+
+            if (numberObject != null)
+            {
+                Renderer renderer = numberObject.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    renderer.material = originalMaterial;
+                    Debug.Log($"Reset material for number object: {numberObject.name}");
+                }
+            }
+        }
+
+        // Reset any lamp base children that might not be in the dictionary
+        void ResetLampBaseChild(GameObject lampBase)
+        {
+            if (lampBase != null && lampBase.transform.childCount > 0)
+            {
+                GameObject numberObject = lampBase.transform.GetChild(0).gameObject;
+                if (numberObject != null && !originalNumberMaterials.ContainsKey(numberObject))
+                {
+                    Renderer renderer = numberObject.GetComponent<Renderer>();
+                    if (renderer != null)
+                    {
+                        // Create a default material if needed
+                        Material defaultMaterial = new Material(Shader.Find("Standard"));
+                        defaultMaterial.color = Color.white;
+                        renderer.material = defaultMaterial;
+                        originalNumberMaterials[numberObject] = defaultMaterial;
+                    }
+                }
+            }
+        }
+
+        // Reset all lamp base children
+        ResetLampBaseChild(lampBase1);
+        ResetLampBaseChild(lampBase2);
+        ResetLampBaseChild(lampBase3);
+        ResetLampBaseChild(lampBase4);
+        ResetLampBaseChild(lampBase5);
+        ResetLampBaseChild(lampBase6);
+        ResetLampBaseChild(lampBase7);
+        ResetLampBaseChild(lampBase8);
+        ResetLampBaseChild(lampBase9);
+        ResetLampBaseChild(lampBase10);
+
+        // Clear all locked lists
         lockedButtons.Clear();
         lockedLampBases.Clear();
-        Debug.Log("Game state variables reset for next try");
-
-        // Reset all materials
-        ResetAllMaterials();
-        Debug.Log("All materials reset");
+        correctlyMatchedButtons.Clear();
 
         // Update UI
         UpdateProgressText();
-        Debug.Log("Progress text updated");
+        UpdateTriesText();
 
         // Don't update instruction text - user doesn't want this text
         Debug.Log("Skipping instruction text update for next try as requested by user");
@@ -556,387 +608,9 @@ public class BasicButtonLampGame : MonoBehaviour
         Debug.Log("Next try setup complete");
     }
 
-    // Find all UI references at runtime
-    private void FindAllUIReferences()
-    {
-        Debug.Log("Finding all UI references at runtime");
-
-        // Find button and lamp references first
-        FindButtonAndLampReferences();
-
-        // Find UI panels by tag
-        GameObject[] uiPanels = GameObject.FindGameObjectsWithTag("UIPanel");
-        Debug.Log($"Found {uiPanels.Length} UI panels with UIPanel tag");
-        foreach (GameObject panel in uiPanels)
-        {
-            if (panel.name.ToLower().Contains("win") && !panel.name.ToLower().Contains("analytics"))
-            {
-                winPanel = panel;
-                Debug.Log("Found Win Panel: " + panel.name);
-            }
-            else if (panel.name.ToLower().Contains("game") && panel.name.ToLower().Contains("over") ||
-                     panel.name.ToLower().Contains("lose"))
-            {
-                losePanel = panel;
-                Debug.Log("Found Lose Panel: " + panel.name);
-            }
-            else if (panel.name.ToLower().Contains("gameanalytics") ||
-                    (panel.name.ToLower().Contains("analytics") && !panel.name.ToLower().Contains("try")))
-            {
-                analyticsPanel = panel;
-                Debug.Log("Found Analytics Panel: " + panel.name);
-            }
-            else if (panel.name.ToLower().Contains("try") && panel.name.ToLower().Contains("analytics"))
-            {
-                tryAnalyticsPanel = panel;
-                Debug.Log("Found Try Analytics Panel: " + panel.name);
-            }
-        }
-
-        // Find UI text elements by tag
-        GameObject[] uiTexts = GameObject.FindGameObjectsWithTag("UIText");
-        foreach (GameObject textObj in uiTexts)
-        {
-            TMPro.TextMeshProUGUI text = textObj.GetComponent<TMPro.TextMeshProUGUI>();
-            if (text == null) continue;
-
-            if (textObj.name.ToLower().Contains("press") || textObj.name.ToLower().Contains("instruction"))
-            {
-                instructionText = text;
-            }
-            else if (textObj.name.ToLower().Contains("progress"))
-            {
-                progressText = text;
-            }
-            else if (textObj.name.ToLower().Contains("tries"))
-            {
-                triesText = text;
-            }
-            else if ((textObj.name.ToLower().Contains("gameanalytics") ||
-                     textObj.name.ToLower().Contains("analytics")) &&
-                     !textObj.name.ToLower().Contains("try"))
-            {
-                analyticsText = text;
-            }
-            else if (textObj.name.ToLower().Contains("try") && textObj.name.ToLower().Contains("analytics"))
-            {
-                tryAnalyticsText = text;
-            }
-        }
-
-        // Find UI buttons by tag
-        GameObject[] uiButtons = GameObject.FindGameObjectsWithTag("UIButton");
-        foreach (GameObject buttonObj in uiButtons)
-        {
-            Button button = buttonObj.GetComponent<Button>();
-            if (button == null) continue;
-
-            if (buttonObj.name.ToLower().Contains("restart") || buttonObj.name.ToLower().Contains("retry"))
-            {
-                if (buttonObj.transform.IsChildOf(winPanel.transform))
-                {
-                    winRetryButton = button;
-                    Debug.Log("Found Win Retry Button: " + buttonObj.name);
-                }
-                else
-                {
-                    retryButton = button;
-                    Debug.Log("Found Retry Button: " + buttonObj.name);
-                }
-            }
-            else if (buttonObj.name.ToLower().Contains("main") && buttonObj.name.ToLower().Contains("menu"))
-            {
-                if (buttonObj.transform.IsChildOf(winPanel.transform))
-                {
-                    winMainMenuButton = button;
-                    Debug.Log("Found Win Main Menu Button: " + buttonObj.name);
-                }
-                else
-                {
-                    mainMenuButton = button;
-                    Debug.Log("Found Main Menu Button: " + buttonObj.name);
-                }
-            }
-            else if (buttonObj.name.ToLower().Contains("exit"))
-            {
-                if (buttonObj.transform.IsChildOf(winPanel.transform))
-                {
-                    winExitButton = button;
-                    Debug.Log("Found Win Exit Button: " + buttonObj.name);
-                }
-                else
-                {
-                    exitButton = button;
-                    Debug.Log("Found Exit Button: " + buttonObj.name);
-                }
-            }
-            else if (buttonObj.name.ToLower().Contains("analytics"))
-            {
-                if (buttonObj.transform.IsChildOf(winPanel.transform))
-                {
-                    winAnalyticsButton = button;
-                    Debug.Log("Found Win Analytics Button: " + buttonObj.name);
-                }
-                else if (buttonObj.transform.IsChildOf(losePanel.transform))
-                {
-                    loseAnalyticsButton = button;
-                    Debug.Log("Found Lose Analytics Button: " + buttonObj.name);
-                }
-                else if (buttonObj.name.ToLower().Contains("close"))
-                {
-                    analyticsButton = button;
-                    Debug.Log("Found Close Analytics Button: " + buttonObj.name);
-                }
-            }
-            // We're now using ESC key instead of CloseAnalyticsButton
-        }
-
-        // If we still have missing references, try to find them by name
-        FindMissingReferencesByName();
-    }
 
 
-    // Find missing references by name
-    private void FindMissingReferencesByName()
-    {
-        // Find UI panels by name
-        if (winPanel == null)
-        {
-            GameObject winPanelObj = GameObject.Find("win");
-            if (winPanelObj != null)
-            {
-                winPanel = winPanelObj;
-                Debug.Log("Found Win Panel by name: " + winPanelObj.name);
-            }
-        }
 
-        if (losePanel == null)
-        {
-            GameObject losePanelObj = GameObject.Find("game over");
-            if (losePanelObj != null)
-            {
-                losePanel = losePanelObj;
-                Debug.Log("Found Lose Panel by name: " + losePanelObj.name);
-            }
-        }
-
-        if (analyticsPanel == null)
-        {
-            GameObject analyticsPanelObj = GameObject.Find("GameAnalyticsPanel");
-            if (analyticsPanelObj != null)
-            {
-                analyticsPanel = analyticsPanelObj;
-                Debug.Log("Found Analytics Panel by name: " + analyticsPanelObj.name);
-            }
-        }
-
-        if (tryAnalyticsPanel == null)
-        {
-            GameObject tryAnalyticsPanelObj = GameObject.Find("TryAnalyticsPanel");
-            if (tryAnalyticsPanelObj != null)
-            {
-                tryAnalyticsPanel = tryAnalyticsPanelObj;
-                Debug.Log("Found Try Analytics Panel by name: " + tryAnalyticsPanelObj.name);
-            }
-        }
-
-        // Find UI text elements by name
-        if (instructionText == null)
-        {
-            GameObject instructionTextObj = GameObject.Find("press");
-            if (instructionTextObj != null)
-            {
-                instructionText = instructionTextObj.GetComponent<TMPro.TextMeshProUGUI>();
-                Debug.Log("Found Instruction Text by name: " + instructionTextObj.name);
-            }
-        }
-
-        if (progressText == null)
-        {
-            GameObject progressTextObj = GameObject.Find("progress");
-            if (progressTextObj != null)
-            {
-                progressText = progressTextObj.GetComponent<TMPro.TextMeshProUGUI>();
-                Debug.Log("Found Progress Text by name: " + progressTextObj.name);
-            }
-        }
-
-        if (triesText == null)
-        {
-            GameObject triesTextObj = GameObject.Find("Tries");
-            if (triesTextObj != null)
-            {
-                triesText = triesTextObj.GetComponent<TMPro.TextMeshProUGUI>();
-                Debug.Log("Found Tries Text by name: " + triesTextObj.name);
-            }
-        }
-
-        if (analyticsText == null)
-        {
-            GameObject analyticsTextObj = GameObject.Find("GameAnalyticsText");
-            if (analyticsTextObj != null)
-            {
-                analyticsText = analyticsTextObj.GetComponent<TMPro.TextMeshProUGUI>();
-                Debug.Log("Found Analytics Text by name: " + analyticsTextObj.name);
-            }
-        }
-
-        // Find ESC instruction text
-        if (escInstructionText == null && analyticsPanel != null)
-        {
-            // First try to find by name
-            GameObject escTextObj = GameObject.Find("EscInstructionText");
-            if (escTextObj != null)
-            {
-                escInstructionText = escTextObj.GetComponent<TMPro.TextMeshProUGUI>();
-                Debug.Log("Found ESC Instruction Text by name: " + escTextObj.name);
-            }
-            else
-            {
-                // Try to find any text in the analytics panel that might be for ESC instructions
-                TMPro.TextMeshProUGUI[] texts = analyticsPanel.GetComponentsInChildren<TMPro.TextMeshProUGUI>(true);
-                foreach (TMPro.TextMeshProUGUI text in texts)
-                {
-                    if (text != analyticsText && (text.name.ToLower().Contains("esc") ||
-                        text.name.ToLower().Contains("instruction") ||
-                        text.name.ToLower().Contains("back")))
-                    {
-                        escInstructionText = text;
-                        Debug.Log("Found ESC Instruction Text in analytics panel: " + text.name);
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (tryAnalyticsText == null)
-        {
-            GameObject tryAnalyticsTextObj = GameObject.Find("TryAnalyticsText");
-            if (tryAnalyticsTextObj != null)
-            {
-                tryAnalyticsText = tryAnalyticsTextObj.GetComponent<TMPro.TextMeshProUGUI>();
-                Debug.Log("Found Try Analytics Text by name: " + tryAnalyticsTextObj.name);
-            }
-        }
-
-        // Find UI buttons by name
-        if (retryButton == null)
-        {
-            GameObject retryButtonObj = GameObject.Find("restart");
-            if (retryButtonObj != null && !retryButtonObj.transform.IsChildOf(winPanel?.transform))
-            {
-                retryButton = retryButtonObj.GetComponent<Button>();
-                Debug.Log("Found Retry Button by name: " + retryButtonObj.name);
-            }
-        }
-
-        if (mainMenuButton == null)
-        {
-            GameObject mainMenuButtonObj = GameObject.Find("MainMenu");
-            if (mainMenuButtonObj != null && !mainMenuButtonObj.transform.IsChildOf(winPanel?.transform))
-            {
-                mainMenuButton = mainMenuButtonObj.GetComponent<Button>();
-                Debug.Log("Found Main Menu Button by name: " + mainMenuButtonObj.name);
-            }
-        }
-
-        if (exitButton == null)
-        {
-            GameObject exitButtonObj = GameObject.Find("exit");
-            if (exitButtonObj != null && !exitButtonObj.transform.IsChildOf(winPanel?.transform))
-            {
-                exitButton = exitButtonObj.GetComponent<Button>();
-                Debug.Log("Found Exit Button by name: " + exitButtonObj.name);
-            }
-        }
-
-        if (winRetryButton == null && winPanel != null)
-        {
-            Transform winRetryButtonTrans = winPanel.transform.Find("restart");
-            if (winRetryButtonTrans != null)
-            {
-                winRetryButton = winRetryButtonTrans.GetComponent<Button>();
-                Debug.Log("Found Win Retry Button by name: " + winRetryButtonTrans.name);
-            }
-        }
-
-        if (winMainMenuButton == null && winPanel != null)
-        {
-            Transform winMainMenuButtonTrans = winPanel.transform.Find("MainMenu");
-            if (winMainMenuButtonTrans != null)
-            {
-                winMainMenuButton = winMainMenuButtonTrans.GetComponent<Button>();
-                Debug.Log("Found Win Main Menu Button by name: " + winMainMenuButtonTrans.name);
-            }
-        }
-
-        if (winExitButton == null && winPanel != null)
-        {
-            Transform winExitButtonTrans = winPanel.transform.Find("exit");
-            if (winExitButtonTrans != null)
-            {
-                winExitButton = winExitButtonTrans.GetComponent<Button>();
-                Debug.Log("Found Win Exit Button by name: " + winExitButtonTrans.name);
-            }
-        }
-
-        if (winAnalyticsButton == null && winPanel != null)
-        {
-            Transform winAnalyticsButtonTrans = winPanel.transform.Find("analytics");
-            if (winAnalyticsButtonTrans != null)
-            {
-                winAnalyticsButton = winAnalyticsButtonTrans.GetComponent<Button>();
-                Debug.Log("Found Win Analytics Button by name: " + winAnalyticsButtonTrans.name);
-            }
-        }
-
-        if (loseAnalyticsButton == null && losePanel != null)
-        {
-            Transform loseAnalyticsButtonTrans = losePanel.transform.Find("analytics");
-            if (loseAnalyticsButtonTrans != null)
-            {
-                loseAnalyticsButton = loseAnalyticsButtonTrans.GetComponent<Button>();
-                Debug.Log("Found Lose Analytics Button by name: " + loseAnalyticsButtonTrans.name);
-            }
-        }
-    }
-
-    // Reset all materials
-    private void ResetAllMaterials()
-    {
-        Debug.Log("ResetAllMaterials called");
-
-        // Reset button materials
-        foreach (GameObject button in new List<GameObject> { button1, button2, button3, button4, button5 })
-        {
-            if (button != null)
-            {
-                Renderer renderer = button.GetComponent<Renderer>();
-                if (renderer != null)
-                {
-                    // Create a new default material if originalButtonMaterial is null
-                    if (originalButtonMaterial == null)
-                    {
-                        Debug.LogWarning("originalButtonMaterial is null, creating a new default material");
-                        originalButtonMaterial = new Material(Shader.Find("Standard"));
-                        originalButtonMaterial.color = Color.white;
-                    }
-
-                    renderer.material = originalButtonMaterial;
-                    Debug.Log($"Reset material for button: {button.name}");
-                }
-                else
-                {
-                    Debug.LogWarning($"No renderer found on button: {button.name}");
-                }
-            }
-        }
-
-        // Reset number materials
-        ResetAllNumbers();
-
-        Debug.Log("All materials have been reset");
-    }
 
     // Update the progress text
     private void UpdateProgressText()
@@ -1447,178 +1121,11 @@ public class BasicButtonLampGame : MonoBehaviour
         }
     }
 
-    // Reset a number's color after a delay
-    private IEnumerator ResetNumberColorAfterDelay(GameObject numberObject, float delay)
-    {
-        yield return new WaitForSeconds(delay);
 
-        if (numberObject != null)
-        {
-            Renderer renderer = numberObject.GetComponent<Renderer>();
-            if (renderer != null && originalNumberMaterials.ContainsKey(numberObject))
-            {
-                renderer.material = originalNumberMaterials[numberObject];
-            }
-        }
-    }
 
-    // Reset the game state (internal version)
-    private void ResetGameState()
-    {
-        Debug.Log("ResetGameState called - resetting internal game state...");
 
-        // Find references again in case they were lost during scene reload
-        FindAllUIReferences();
 
-        // Make sure analytics panel is hidden
-        if (analyticsPanel != null)
-        {
-            analyticsPanel.SetActive(false);
-            Debug.Log("Ensuring analytics panel is hidden during reset");
-        }
 
-        // Explicitly reset game state
-        gameOver = false;
-        ForceGameStateReset = false;
-        currentTryFailed = false;
-        currentTryWrongButtons = 0;
-        currentProgress = 0;
-
-        // Reset button selection
-        if (selectedButton != null)
-        {
-            ResetButtonAppearance(selectedButton);
-            selectedButton = null;
-        }
-
-        // Reset all locked buttons
-        foreach (GameObject button in lockedButtons)
-        {
-            if (button != null)
-            {
-                Renderer renderer = button.GetComponent<Renderer>();
-                if (renderer != null && originalButtonMaterial != null)
-                {
-                    renderer.material = originalButtonMaterial;
-                }
-            }
-        }
-
-        // Reset all numbers
-        ResetAllNumbers();
-
-        // Clear locked lists
-        lockedButtons.Clear();
-        lockedLampBases.Clear();
-        correctlyMatchedButtons.Clear();
-
-        // Reset UI
-        UpdateProgressText();
-        UpdateTriesText();
-
-        // Hide panels
-        if (winPanel != null) winPanel.SetActive(false);
-        if (losePanel != null) losePanel.SetActive(false);
-        if (analyticsPanel != null) analyticsPanel.SetActive(false);
-        if (tryAnalyticsPanel != null) tryAnalyticsPanel.SetActive(false);
-
-        Debug.Log("Game reset complete");
-    }
-
-    // Reset all numbers to their original appearance
-    private void ResetAllNumbers()
-    {
-        Debug.Log($"ResetAllNumbers called - originalNumberMaterials count: {originalNumberMaterials.Count}");
-
-        // Create a list of all number objects to check
-        List<GameObject> allNumberObjects = new List<GameObject>();
-
-        // Helper function to safely add child objects
-        void SafelyAddChildObject(GameObject parent)
-        {
-            if (parent != null)
-            {
-                try
-                {
-                    if (parent.transform.childCount > 0)
-                    {
-                        GameObject child = parent.transform.GetChild(0).gameObject;
-                        allNumberObjects.Add(child);
-                        Debug.Log($"Added number object {child.name} from parent {parent.name}");
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"Lamp base {parent.name} has no children");
-                    }
-                }
-                catch (System.Exception e)
-                {
-                    Debug.LogError($"Error accessing child of {parent.name}: {e.Message}");
-                }
-            }
-        }
-
-        // Add all lamp base children
-        SafelyAddChildObject(lampBase1);
-        SafelyAddChildObject(lampBase2);
-        SafelyAddChildObject(lampBase3);
-        SafelyAddChildObject(lampBase4);
-        SafelyAddChildObject(lampBase5);
-        SafelyAddChildObject(lampBase6);
-        SafelyAddChildObject(lampBase7);
-        SafelyAddChildObject(lampBase8);
-        SafelyAddChildObject(lampBase9);
-        SafelyAddChildObject(lampBase10);
-
-        // Reset materials from the dictionary
-        foreach (var entry in originalNumberMaterials)
-        {
-            GameObject numberObject = entry.Key;
-            Material originalMaterial = entry.Value;
-
-            if (numberObject != null)
-            {
-                Renderer renderer = numberObject.GetComponent<Renderer>();
-                if (renderer != null)
-                {
-                    renderer.material = originalMaterial;
-                    Debug.Log($"Reset material for number object: {numberObject.name}");
-                }
-                else
-                {
-                    Debug.LogWarning($"No renderer found on number object: {numberObject.name}");
-                }
-            }
-            else
-            {
-                Debug.LogWarning("Null number object in originalNumberMaterials dictionary");
-            }
-        }
-
-        // Check for any number objects that might not be in the dictionary
-        foreach (GameObject numberObject in allNumberObjects)
-        {
-            if (numberObject != null && !originalNumberMaterials.ContainsKey(numberObject))
-            {
-                Renderer renderer = numberObject.GetComponent<Renderer>();
-                if (renderer != null)
-                {
-                    // Create a default material if needed
-                    Material defaultMaterial = new Material(Shader.Find("Standard"));
-                    defaultMaterial.color = Color.white;
-
-                    // Store it in the dictionary
-                    originalNumberMaterials[numberObject] = defaultMaterial;
-
-                    // Apply it
-                    renderer.material = defaultMaterial;
-                    Debug.Log($"Created and applied default material for number object: {numberObject.name}");
-                }
-            }
-        }
-
-        Debug.Log("All number materials have been reset");
-    }
 
     // Called when the player wins the game
     private void GameWon()
@@ -2108,90 +1615,13 @@ public class BasicButtonLampGame : MonoBehaviour
         }
     }
 
-    // Public method to reset the game
-    public void ResetGame()
-    {
-        Debug.Log("ResetGame called - resetting game state");
 
-        // First, refresh all references to ensure we have valid objects
-        RefreshAllReferences();
 
-        // Make sure analytics panel is hidden at start
-        if (analyticsPanel != null)
-        {
-            analyticsPanel.SetActive(false);
-            Debug.Log("Ensuring analytics panel is hidden during reset");
-        }
-
-        // Set the restart flags to true so the demo will run again and game state will be reset
-        SimpleDemoManager.IsGameRestarting = true;
-        ForceGameStateReset = true;
-
-        // Reset game state
-        gameOver = false;
-
-        // Reset all game state variables
-        selectedButton = null;
-        currentTries = maxTries;
-        currentProgress = 0;
-        currentTryFailed = false;
-        currentTryWrongButtons = 0;
-        wrongButtonsPerTry.Clear();
-        lockedButtons.Clear();
-        lockedLampBases.Clear();
-        correctlyMatchedButtons.Clear();
-
-        // Reset all materials
-        ResetAllMaterials();
-
-        // Reset UI
-        UpdateProgressText();
-        UpdateTriesText();
-
-        // Hide all panels
-        if (winPanel != null) winPanel.SetActive(false);
-        if (losePanel != null) losePanel.SetActive(false);
-        if (analyticsPanel != null) analyticsPanel.SetActive(false);
-        if (tryAnalyticsPanel != null) tryAnalyticsPanel.SetActive(false);
-
-        // Keep instruction text clear
-        if (instructionText != null)
-        {
-            instructionText.text = "";
-            Debug.Log("Kept instruction text clear in ResetGame");
-        }
-
-        // Re-enable player movement that might have been disabled
-        EnablePlayerMovement();
-
-        // Restart the demo phase
-        SimpleDemoManager demoManager = FindObjectOfType<SimpleDemoManager>();
-        if (demoManager != null)
-        {
-            // Reset the demo manager to start the demo again
-            demoManager.isGameplayActive = false;
-            demoManager.isDemoRunning = false;
-            demoManager.demoCompleted = false;
-            demoManager.ResetDemo();
-            Debug.Log("Demo manager found and reset to restart demo phase");
-        }
-        else
-        {
-            Debug.LogWarning("Could not find SimpleDemoManager!");
-        }
-
-        // Set up button listeners again
-        SetupButtonListeners();
-
-        // We're now using ESC key instead of CloseAnalyticsButton
-
-        Debug.Log("Game reset complete");
-    }
-
-    // Retry the game
+    // Retry the game - reloads the entire scene
+    // This is the ONLY method that should be called when the player presses retry
     private void RetryGame()
     {
-        Debug.Log("Restarting game with full scene reload...");
+        Debug.Log("RetryGame called - restarting game with full scene reload...");
 
         // Make sure cursor is visible before reloading
         Cursor.visible = true;
@@ -2202,12 +1632,6 @@ public class BasicButtonLampGame : MonoBehaviour
         ForceGameStateReset = true;
 
         // Save analytics data before reloading
-        if (analyticsData == null)
-        {
-            analyticsData = new List<string>();
-        }
-
-        // Add current game data to analytics
         UpdateAnalyticsData();
 
         // Get the current scene name
@@ -2218,197 +1642,14 @@ public class BasicButtonLampGame : MonoBehaviour
         SceneManager.LoadScene(currentSceneName);
     }
 
-    // Find all button and lamp references
-    private void FindButtonAndLampReferences()
-    {
-        // First try to find by tag
-        FindButtonsAndLampsByTag();
 
-        // If we still have missing references, try to find by name as a fallback
-        if (button1 == null || button2 == null || button3 == null || button4 == null || button5 == null ||
-            lampBase1 == null || lampBase2 == null || lampBase3 == null || lampBase4 == null || lampBase5 == null ||
-            lampBase6 == null || lampBase7 == null || lampBase8 == null || lampBase9 == null || lampBase10 == null)
-        {
-            FindButtonsAndLampsByName();
-        }
-    }
 
-    // Find buttons and lamps by tag
-    private void FindButtonsAndLampsByTag()
-    {
-        // Find all buttons by tag
-        GameObject[] taggedButtons = GameObject.FindGameObjectsWithTag("Button");
 
-        foreach (GameObject buttonObj in taggedButtons)
-        {
-            // Try to determine which button this is by name
-            string buttonName = buttonObj.name.ToLower();
-
-            if (buttonName.Contains("1") || buttonName.Contains("one"))
-            {
-                button1 = buttonObj;
-                if (buttons != null && buttons.Length > 0) buttons[0] = buttonObj;
-            }
-            else if (buttonName.Contains("2") || buttonName.Contains("two"))
-            {
-                button2 = buttonObj;
-                if (buttons != null && buttons.Length > 1) buttons[1] = buttonObj;
-            }
-            else if (buttonName.Contains("3") || buttonName.Contains("three"))
-            {
-                button3 = buttonObj;
-                if (buttons != null && buttons.Length > 2) buttons[2] = buttonObj;
-            }
-            else if (buttonName.Contains("4") || buttonName.Contains("four"))
-            {
-                button4 = buttonObj;
-                if (buttons != null && buttons.Length > 3) buttons[3] = buttonObj;
-            }
-            else if (buttonName.Contains("5") || buttonName.Contains("five"))
-            {
-                button5 = buttonObj;
-                if (buttons != null && buttons.Length > 4) buttons[4] = buttonObj;
-            }
-        }
-
-        // Find all lamp bases by tag
-        GameObject[] taggedLamps = GameObject.FindGameObjectsWithTag("LampBase");
-
-        foreach (GameObject lampObj in taggedLamps)
-        {
-            // Try to determine which lamp this is by name or by the BasicNumber component
-            string lampName = lampObj.name.ToLower();
-            BasicNumber basicNumber = lampObj.GetComponent<BasicNumber>();
-            int lampNumber = -1;
-
-            // Try to get the number from the BasicNumber component first
-            if (basicNumber != null)
-            {
-                lampNumber = basicNumber.numberValue;
-            }
-            // If that fails, try to parse it from the name
-            else if (lampName.Contains("lamp") || lampName.Contains("base"))
-            {
-                // Try to extract the number from the name
-                for (int i = 1; i <= 10; i++)
-                {
-                    if (lampName.Contains(i.ToString()) ||
-                        (i == 1 && lampName.Contains("one")) ||
-                        (i == 2 && lampName.Contains("two")) ||
-                        (i == 3 && lampName.Contains("three")) ||
-                        (i == 4 && lampName.Contains("four")) ||
-                        (i == 5 && lampName.Contains("five")) ||
-                        (i == 6 && lampName.Contains("six")) ||
-                        (i == 7 && lampName.Contains("seven")) ||
-                        (i == 8 && lampName.Contains("eight")) ||
-                        (i == 9 && lampName.Contains("nine")) ||
-                        (i == 10 && lampName.Contains("ten")))
-                    {
-                        lampNumber = i;
-                        break;
-                    }
-                }
-            }
-
-            // Assign the lamp to the correct reference based on its number
-            if (lampNumber >= 1 && lampNumber <= 10)
-            {
-                switch (lampNumber)
-                {
-                    case 1: lampBase1 = lampObj; break;
-                    case 2: lampBase2 = lampObj; break;
-                    case 3: lampBase3 = lampObj; break;
-                    case 4: lampBase4 = lampObj; break;
-                    case 5: lampBase5 = lampObj; break;
-                    case 6: lampBase6 = lampObj; break;
-                    case 7: lampBase7 = lampObj; break;
-                    case 8: lampBase8 = lampObj; break;
-                    case 9: lampBase9 = lampObj; break;
-                    case 10: lampBase10 = lampObj; break;
-                }
-
-                if (lampBases != null && lampNumber - 1 < lampBases.Length)
-                {
-                    lampBases[lampNumber - 1] = lampObj;
-                }
-            }
-        }
-    }
-
-    // Find buttons and lamps by name as a fallback
-    private void FindButtonsAndLampsByName()
-    {
-        // Find all lamp bases
-        for (int i = 1; i <= 10; i++)
-        {
-            // Skip if we already have this reference
-            if ((i == 1 && lampBase1 != null) || (i == 2 && lampBase2 != null) ||
-                (i == 3 && lampBase3 != null) || (i == 4 && lampBase4 != null) ||
-                (i == 5 && lampBase5 != null) || (i == 6 && lampBase6 != null) ||
-                (i == 7 && lampBase7 != null) || (i == 8 && lampBase8 != null) ||
-                (i == 9 && lampBase9 != null) || (i == 10 && lampBase10 != null))
-            {
-                continue;
-            }
-
-            string lampName = $"Lamp Base {i}";
-            GameObject lampObj = GameObject.Find(lampName);
-            if (lampObj != null)
-            {
-                switch (i)
-                {
-                    case 1: lampBase1 = lampObj; break;
-                    case 2: lampBase2 = lampObj; break;
-                    case 3: lampBase3 = lampObj; break;
-                    case 4: lampBase4 = lampObj; break;
-                    case 5: lampBase5 = lampObj; break;
-                    case 6: lampBase6 = lampObj; break;
-                    case 7: lampBase7 = lampObj; break;
-                    case 8: lampBase8 = lampObj; break;
-                    case 9: lampBase9 = lampObj; break;
-                    case 10: lampBase10 = lampObj; break;
-                }
-                if (lampBases != null && i - 1 < lampBases.Length)
-                {
-                    lampBases[i-1] = lampObj;
-                }
-            }
-        }
-
-        // Find all buttons
-        for (int i = 1; i <= 5; i++)
-        {
-            // Skip if we already have this reference
-            if ((i == 1 && button1 != null) || (i == 2 && button2 != null) ||
-                (i == 3 && button3 != null) || (i == 4 && button4 != null) ||
-                (i == 5 && button5 != null))
-            {
-                continue;
-            }
-
-            string buttonName = $"Button {i}";
-            GameObject buttonObj = GameObject.Find(buttonName);
-            if (buttonObj != null)
-            {
-                switch (i)
-                {
-                    case 1: button1 = buttonObj; break;
-                    case 2: button2 = buttonObj; break;
-                    case 3: button3 = buttonObj; break;
-                    case 4: button4 = buttonObj; break;
-                    case 5: button5 = buttonObj; break;
-                }
-                if (buttons != null && i - 1 < buttons.Length)
-                {
-                    buttons[i-1] = buttonObj;
-                }
-            }
-        }
-    }
 
     // Update analytics data for saving
     private void UpdateAnalyticsData()
     {
+        // Initialize analytics data if needed
         if (analyticsData == null)
         {
             analyticsData = new List<string>();
@@ -2445,13 +1686,6 @@ public class BasicButtonLampGame : MonoBehaviour
         // Make sure cursor is visible before loading main menu
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
-
-        // If we have a persistent game manager, it will handle cursor state across scenes
-        PersistentGameManager persistentManager = FindObjectOfType<PersistentGameManager>();
-        if (persistentManager != null && persistentManager.customCursor != null)
-        {
-            persistentManager.customCursor.SetCustomCursor();
-        }
 
         // Load the main menu scene
         // Note: You need to set up the scene name in the build settings
@@ -2522,13 +1756,19 @@ public class BasicButtonLampGame : MonoBehaviour
         Debug.Log($"Delayed game state check - gameOver: {gameOver}, ForceGameStateReset: {ForceGameStateReset}");
     }
 
-    // Refresh all references when the game is restarted
-    public void RefreshAllReferences()
-    {
-        // Find all references again
-        FindAllReferences();
 
-        // Set up button listeners again
-        SetupButtonListeners();
+    // Reset a number's color after a delay
+    private IEnumerator ResetNumberColorAfterDelay(GameObject numberObject, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        if (numberObject != null)
+        {
+            Renderer renderer = numberObject.GetComponent<Renderer>();
+            if (renderer != null && originalNumberMaterials.ContainsKey(numberObject))
+            {
+                renderer.material = originalNumberMaterials[numberObject];
+            }
+        }
     }
 }

@@ -14,25 +14,9 @@ public class GameInitializer : MonoBehaviour
     [Tooltip("Hotspot (click point) of the cursor")]
     public Vector2 hotSpot = new Vector2(16, 16);
 
-    [Tooltip("Whether to use the PersistentGameManager if available")]
-    public bool usePersistentManager = true;
-
     private void Awake()
     {
-        // Check if we should use the persistent manager
-        if (usePersistentManager)
-        {
-            // Look for a PersistentGameManager
-            PersistentGameManager persistentManager = FindObjectOfType<PersistentGameManager>();
-            if (persistentManager != null)
-            {
-                // Use the persistent manager's cursor settings
-                Debug.Log("Using PersistentGameManager for cursor settings");
-                return;
-            }
-        }
-
-        // If no persistent manager or we're not using it, initialize our own cursor
+        // Initialize our cursor
         InitializeLocalCursor();
 
         // Start a coroutine to ensure cursor stays visible
