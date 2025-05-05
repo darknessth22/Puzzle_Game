@@ -28,10 +28,6 @@ public class BasicButton : MonoBehaviour
         {
             gameManager.ButtonClicked(gameObject);
         }
-        else
-        {
-            Debug.LogError("No game manager assigned to button: " + gameObject.name);
-        }
     }
 
     // Called when the object is enabled
@@ -85,10 +81,6 @@ public class BasicButton : MonoBehaviour
             if (audioSource != null)
             {
                 audioSource.PlayOneShot(buttonClickSound, volume);
-            }
-            else
-            {
-                Debug.LogWarning("No AudioSource found on button: " + gameObject.name);
             }
         }
     }

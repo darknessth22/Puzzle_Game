@@ -10,8 +10,6 @@ public class AnalyticsTextFixer : MonoBehaviour
 
     public void Start()
     {
-        Debug.Log("AnalyticsTextFixer: Starting to fix analytics text alignment");
-
         // Set up scroll view if it doesn't exist
         SetupScrollView();
 
@@ -26,15 +24,12 @@ public class AnalyticsTextFixer : MonoBehaviour
                 if (textObj != null)
                 {
                     analyticsText = textObj.GetComponent<TextMeshProUGUI>();
-                    Debug.Log("AnalyticsTextFixer: Found GameAnalyticsText by name");
                 }
             }
         }
 
         if (analyticsText != null)
         {
-            Debug.Log("AnalyticsTextFixer: Found analytics text, configuring it");
-
             // Get the RectTransform
             analyticsTextRectTransform = analyticsText.GetComponent<RectTransform>();
 
@@ -69,8 +64,6 @@ public class AnalyticsTextFixer : MonoBehaviour
 
                     // Set width to match parent with minimal padding
                     analyticsTextRectTransform.sizeDelta = new Vector2(-10, 0);
-
-                    Debug.Log("AnalyticsTextFixer: RectTransform configured for scroll view");
                 }
                 else
                 {
@@ -86,18 +79,8 @@ public class AnalyticsTextFixer : MonoBehaviour
 
                     // Set pivot to top-left
                     analyticsTextRectTransform.pivot = new Vector2(0, 1);
-
-                    Debug.Log("AnalyticsTextFixer: RectTransform configured for standard view");
                 }
             }
-            else
-            {
-                Debug.LogError("AnalyticsTextFixer: Could not get RectTransform component");
-            }
-        }
-        else
-        {
-            Debug.LogError("AnalyticsTextFixer: Could not find analytics text");
         }
     }
 
@@ -108,8 +91,6 @@ public class AnalyticsTextFixer : MonoBehaviour
 
         if (scrollRect == null)
         {
-            Debug.Log("AnalyticsTextFixer: Creating ScrollRect");
-
             // Create a viewport
             GameObject viewportObj = new GameObject("Viewport");
             RectTransform viewportRect = viewportObj.AddComponent<RectTransform>();
@@ -156,14 +137,7 @@ public class AnalyticsTextFixer : MonoBehaviour
             if (existingText != null)
             {
                 existingText.transform.SetParent(contentRect, false);
-                Debug.Log("AnalyticsTextFixer: Moved existing text to scroll content");
             }
-
-            Debug.Log("AnalyticsTextFixer: ScrollRect setup complete");
-        }
-        else
-        {
-            Debug.Log("AnalyticsTextFixer: ScrollRect already exists");
         }
     }
 
@@ -182,15 +156,11 @@ public class AnalyticsTextFixer : MonoBehaviour
             // Force the text to update
             analyticsText.ForceMeshUpdate(true);
 
-            // Log the current text content for debugging
-            Debug.Log($"AnalyticsTextFixer: Forced text update. Text content length: {analyticsText.text.Length}");
-
             // If we have a scroll rect, force it to update as well
             if (scrollRect != null)
             {
                 Canvas.ForceUpdateCanvases();
                 scrollRect.verticalNormalizedPosition = 1; // Scroll to top
-                Debug.Log("AnalyticsTextFixer: Forced scroll view update");
             }
         }
     }

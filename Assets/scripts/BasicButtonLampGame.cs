@@ -4,16 +4,13 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
-using System.Linq;
 
 public class BasicButtonLampGame : MonoBehaviour
 {
     // Static flag to ensure game state is reset properly
     public static bool ForceGameStateReset = false;
 
-    // Buttons are now defined through the ButtonNumberMapping component in the Inspector
-
-    // Lamp bases are now defined through the ButtonNumberMapping component in the Inspector
+    // Buttons and lamp bases are defined through the ButtonNumberMapping component in the Inspector
 
     [Header("UI References")]
     public TextMeshProUGUI instructionText;
@@ -67,10 +64,6 @@ public class BasicButtonLampGame : MonoBehaviour
     // Dictionary to store original materials for number objects
     private Dictionary<GameObject, Material> originalNumberMaterials = new Dictionary<GameObject, Material>();
 
-    // Arrays to store all buttons and lamp bases
-    private GameObject[] buttons;
-    private GameObject[] lampBases;
-
     // Lists to track locked buttons and lamps
     private List<GameObject> lockedButtons = new List<GameObject>();
     private List<GameObject> lockedLampBases = new List<GameObject>();
@@ -99,7 +92,6 @@ public class BasicButtonLampGame : MonoBehaviour
             // Only handle ESC key if analytics panel is active
             if (analyticsPanel != null && analyticsPanel.activeSelf)
             {
-                Debug.Log("ESC key pressed - closing analytics panel");
                 HideAnalyticsPanel();
             }
         }
@@ -127,24 +119,11 @@ public class BasicButtonLampGame : MonoBehaviour
             if (buttonNumberMapping == null)
             {
                 buttonNumberMapping = gameObject.AddComponent<ButtonNumberMapping>();
-                Debug.Log("Added ButtonNumberMapping component");
             }
         }
 
         // Make sure the mapping dictionaries are initialized
         buttonNumberMapping.RebuildMappingDictionaries();
-
-        // Log the current mappings
-        List<ButtonNumberPair> pairs = buttonNumberMapping.GetAllPairs();
-        Debug.Log($"Using {pairs.Count} button-number mappings from Inspector");
-
-        foreach (var pair in pairs)
-        {
-            if (pair.button != null)
-            {
-                Debug.Log($"Mapping: Button {pair.button.name} -> Number {pair.numberValue}");
-            }
-        }
     }
 
     // Find all references in one go
@@ -167,7 +146,6 @@ public class BasicButtonLampGame : MonoBehaviour
             if (basicButton != null)
             {
                 basicButton.gameManager = this;
-                Debug.Log($"Set game manager reference for button: {btn.name}");
             }
         }
 
@@ -182,7 +160,6 @@ public class BasicButtonLampGame : MonoBehaviour
                 if (basicNumber != null)
                 {
                     basicNumber.gameManager = this;
-                    Debug.Log($"Set game manager reference for lamp base: {lamp.name}");
                 }
             }
         }
@@ -239,7 +216,7 @@ public class BasicButtonLampGame : MonoBehaviour
             }
 
             totalButtonsToMatch = buttonCount;
-            Debug.Log($"Automatically set totalButtonsToMatch to {totalButtonsToMatch} based on available buttons");
+
         }
 
         // Reset the force reset flag
@@ -283,7 +260,6 @@ public class BasicButtonLampGame : MonoBehaviour
         if (instructionText != null)
         {
             instructionText.text = "";
-            Debug.Log("Cleared instruction text as requested by user");
         }
 
         // Set up button listeners
@@ -304,7 +280,6 @@ public class BasicButtonLampGame : MonoBehaviour
             // Remove any existing listeners first to avoid duplicates
             analyticsButton.onClick.RemoveAllListeners();
             analyticsButton.onClick.AddListener(ShowAnalyticsPanel);
-            Debug.Log("Set up general analytics button");
         }
 
         // Win panel analytics button
@@ -313,7 +288,6 @@ public class BasicButtonLampGame : MonoBehaviour
             // Remove any existing listeners first to avoid duplicates
             winAnalyticsButton.onClick.RemoveAllListeners();
             winAnalyticsButton.onClick.AddListener(ShowAnalyticsPanel);
-            Debug.Log("Set up win panel analytics button");
         }
         else
         {
@@ -326,7 +300,6 @@ public class BasicButtonLampGame : MonoBehaviour
             // Remove any existing listeners first to avoid duplicates
             loseAnalyticsButton.onClick.RemoveAllListeners();
             loseAnalyticsButton.onClick.AddListener(ShowAnalyticsPanel);
-            Debug.Log("Set up lose panel analytics button");
         }
         else
         {
@@ -361,7 +334,6 @@ public class BasicButtonLampGame : MonoBehaviour
         {
             winRetryButton.onClick.RemoveAllListeners();
             winRetryButton.onClick.AddListener(RetryGame);
-            Debug.Log("Set up win panel retry button");
         }
         else
         {
@@ -396,7 +368,6 @@ public class BasicButtonLampGame : MonoBehaviour
                 {
                     button.onClick.RemoveAllListeners();
                     button.onClick.AddListener(HideAnalyticsPanel);
-                    Debug.Log("Set up analytics panel close button: " + button.name);
                 }
             }
         }
@@ -405,8 +376,6 @@ public class BasicButtonLampGame : MonoBehaviour
     // Called when a try is complete (all buttons are locked)
     private void FinishCurrentTry()
     {
-        Debug.Log("FinishCurrentTry called - starting try completion process");
-
         // This method is only called for failed tries
 
         // Calculate correct and wrong buttons
@@ -414,25 +383,18 @@ public class BasicButtonLampGame : MonoBehaviour
 
         // Record analytics for this try
         wrongButtonsPerTry.Add(currentTryWrongButtons);
-        Debug.Log($"Try {maxTries - currentTries + 1} completed with {currentTryWrongButtons} wrong buttons and {correctButtons} correct buttons");
 
         // Decrease tries
         currentTries--;
         UpdateTriesText();
-        Debug.Log($"Decreased tries to {currentTries}");
-
-        // Don't show message about failed try - user doesn't want this text
-        Debug.Log("Skipping instruction text update for failed try as requested by user");
 
         // Show try analytics panel
-        Debug.Log("About to show try analytics panel");
         ShowTryAnalyticsPanel(correctButtons, currentTryWrongButtons);
 
         // Check if out of tries - but don't end the game yet
         // We'll let the analytics panel show first, then end the game
         if (currentTries <= 0)
         {
-            Debug.Log("Out of tries, starting coroutine to show game over after analytics");
             // Start a coroutine to show game over after analytics panel
             StartCoroutine(ShowGameOverAfterAnalytics());
             return;
@@ -452,17 +414,11 @@ public class BasicButtonLampGame : MonoBehaviour
     // Show the try analytics panel with results
     private void ShowTryAnalyticsPanel(int correctButtons, int wrongButtons)
     {
-        Debug.Log($"ShowTryAnalyticsPanel called with correctButtons={correctButtons}, wrongButtons={wrongButtons}");
-
         if (tryAnalyticsPanel != null)
         {
-            Debug.Log("tryAnalyticsPanel is not null, proceeding");
-
             // Update try analytics text with enhanced formatting
             if (tryAnalyticsText != null)
             {
-                Debug.Log("tryAnalyticsText is not null, updating text");
-
                 // Create a more visually appealing text display
                 System.Text.StringBuilder sb = new System.Text.StringBuilder();
                 sb.AppendLine($"<align=center><size=40><b>TRY {maxTries - currentTries} RESULTS</b></size></align>");
@@ -488,7 +444,6 @@ public class BasicButtonLampGame : MonoBehaviour
                 }
 
                 tryAnalyticsText.text = sb.ToString();
-                Debug.Log("Try analytics text updated");
             }
             else
             {
@@ -497,17 +452,14 @@ public class BasicButtonLampGame : MonoBehaviour
 
             // Show the panel
             tryAnalyticsPanel.SetActive(true);
-            Debug.Log("Try analytics panel activated");
 
             // Start coroutine to hide panel and start next try after delay
-            Debug.Log($"Starting coroutine to hide panel after {tryAnalyticsDuration} seconds");
             StartCoroutine(HideTryAnalyticsPanelAfterDelay());
         }
         else
         {
             Debug.LogError("tryAnalyticsPanel is null! Check the Inspector assignment");
             // If panel doesn't exist, just start the next try
-            Debug.Log($"Starting next try after delay of {tryAnalyticsDuration} seconds");
             StartCoroutine(StartNextTryAfterDelay(tryAnalyticsDuration));
         }
     }
@@ -515,17 +467,13 @@ public class BasicButtonLampGame : MonoBehaviour
     // Hide try analytics panel after delay and start next try
     private IEnumerator HideTryAnalyticsPanelAfterDelay()
     {
-        Debug.Log($"HideTryAnalyticsPanelAfterDelay started, waiting for {tryAnalyticsDuration} seconds");
-
         // Wait for the specified duration
         yield return new WaitForSeconds(tryAnalyticsDuration);
-        Debug.Log("Wait completed in HideTryAnalyticsPanelAfterDelay");
 
         // Hide the panel
         if (tryAnalyticsPanel != null)
         {
             tryAnalyticsPanel.SetActive(false);
-            Debug.Log("Try analytics panel hidden");
         }
         else
         {
@@ -533,24 +481,19 @@ public class BasicButtonLampGame : MonoBehaviour
         }
 
         // Start the next try
-        Debug.Log("About to start next try from HideTryAnalyticsPanelAfterDelay");
         StartNextTry();
     }
 
     // Start the next try after a delay
     private IEnumerator StartNextTryAfterDelay(float delay)
     {
-        Debug.Log($"StartNextTryAfterDelay started, waiting for {delay} seconds");
         yield return new WaitForSeconds(delay);
-        Debug.Log("Wait completed in StartNextTryAfterDelay");
         StartNextTry();
     }
 
     // Start the next try
     private void StartNextTry()
     {
-        Debug.Log("StartNextTry called - resetting game state for next try");
-
         // Hide all panels
         if (winPanel != null) winPanel.SetActive(false);
         if (losePanel != null) losePanel.SetActive(false);
@@ -602,7 +545,6 @@ public class BasicButtonLampGame : MonoBehaviour
             if (renderer != null && originalButtonMaterial != null)
             {
                 renderer.material = originalButtonMaterial;
-                Debug.Log($"Reset material for button: {button.name}");
             }
         }
 
@@ -618,7 +560,6 @@ public class BasicButtonLampGame : MonoBehaviour
                 if (renderer != null)
                 {
                     renderer.material = originalMaterial;
-                    Debug.Log($"Reset material for number object: {numberObject.name}");
                 }
             }
         }
@@ -662,16 +603,7 @@ public class BasicButtonLampGame : MonoBehaviour
         // Update UI
         UpdateProgressText();
         UpdateTriesText();
-
-        // Don't update instruction text - user doesn't want this text
-        Debug.Log("Skipping instruction text update for next try as requested by user");
-
-        Debug.Log("Next try setup complete");
     }
-
-
-
-
 
     // Update the progress text
     private void UpdateProgressText()
@@ -704,7 +636,6 @@ public class BasicButtonLampGame : MonoBehaviour
             int numberValue = buttonNumberMapping.GetNumberForButton(button);
             if (numberValue != -1)
             {
-                Debug.Log($"GetCorrectNumberForButton: Button {button.name} maps to lamp number {numberValue} (from mapping)");
                 return numberValue;
             }
         }
@@ -716,7 +647,6 @@ public class BasicButtonLampGame : MonoBehaviour
             int numberValue = demoManager.GetNumberForButton(button);
             if (numberValue != -1)
             {
-                Debug.Log($"GetCorrectNumberForButton: Button {button.name} maps to lamp number {numberValue} (from demo manager)");
                 return numberValue;
             }
         }
@@ -807,7 +737,6 @@ public class BasicButtonLampGame : MonoBehaviour
         // Check if the game is over or if we're in the process of resetting
         if (gameOver || ForceGameStateReset)
         {
-            Debug.Log("Game is over or resetting, ignoring button click");
             return;
         }
 
@@ -815,16 +744,12 @@ public class BasicButtonLampGame : MonoBehaviour
         SimpleDemoManager demoManager = FindObjectOfType<SimpleDemoManager>();
         if (demoManager != null && demoManager.IsDemoRunning())
         {
-            Debug.Log("Demo is still running, ignoring button click");
             return;
         }
-
-        Debug.Log("Button clicked: " + button.name);
 
         // Check if the button is locked
         if (lockedButtons.Contains(button))
         {
-            Debug.Log("Button is locked, ignoring click");
             return;
         }
 
@@ -844,12 +769,9 @@ public class BasicButtonLampGame : MonoBehaviour
     // Call this from number click events
     public void NumberClicked(GameObject lampBase, GameObject numberObject, int numberValue)
     {
-        Debug.Log($"NumberClicked called - lampBase: {lampBase.name}, numberObject: {(numberObject != null ? numberObject.name : "null")}, numberValue: {numberValue}");
-
         // Check if the game is over or if we're in the process of resetting
         if (gameOver || ForceGameStateReset)
         {
-            Debug.Log("Game is over or resetting, ignoring lamp click");
             return;
         }
 
@@ -857,36 +779,26 @@ public class BasicButtonLampGame : MonoBehaviour
         SimpleDemoManager demoManager = FindObjectOfType<SimpleDemoManager>();
         if (demoManager != null && demoManager.IsDemoRunning())
         {
-            Debug.Log("Demo is still running, ignoring lamp click");
             return;
         }
-
-        Debug.Log("Lamp base clicked: " + lampBase.name + ", Number value: " + numberValue);
 
         // Check if the lamp base is locked
         if (lockedLampBases.Contains(lampBase))
         {
-            Debug.Log("Lamp base is locked, ignoring click");
             return;
         }
 
         // If no button is selected, ignore the number click
         if (selectedButton == null)
         {
-            Debug.Log("No button selected, ignoring lamp click");
             return;
         }
 
-        Debug.Log($"Selected button: {selectedButton.name}, checking if it matches with number {numberValue}");
-
         // Check if this is the correct match
         bool isCorrect = IsCorrectMatch(selectedButton, numberValue);
-        Debug.Log($"Match result: {(isCorrect ? "CORRECT" : "WRONG")}");
 
         if (isCorrect)
         {
-            Debug.Log("Correct match! Processing success...");
-
             // Lock the button and lamp base with success visual
             LockButtonSuccess(selectedButton);
             LockLampSuccess(lampBase, numberObject);
@@ -894,45 +806,32 @@ public class BasicButtonLampGame : MonoBehaviour
             // Add to locked lists
             lockedButtons.Add(selectedButton);
             lockedLampBases.Add(lampBase);
-            Debug.Log($"Added to locked lists - lockedButtons count: {lockedButtons.Count}, lockedLampBases count: {lockedLampBases.Count}");
 
             // Add to correctly matched buttons list
             correctlyMatchedButtons.Add(selectedButton);
-            Debug.Log($"Added to correctly matched buttons - count: {correctlyMatchedButtons.Count}");
 
             // Update progress
             currentProgress = correctlyMatchedButtons.Count;
             UpdateProgressText();
-            Debug.Log($"Updated progress to {currentProgress}/{totalButtonsToMatch}");
 
             // Only check for win if all buttons have been used
             if (lockedButtons.Count >= totalButtonsToMatch)
             {
-                Debug.Log($"All buttons used (lockedButtons count: {lockedButtons.Count} >= totalButtonsToMatch: {totalButtonsToMatch})");
-
                 // Check if all matches were correct (no failures)
                 if (!currentTryFailed && currentProgress >= totalButtonsToMatch)
                 {
-                    Debug.Log("All matches were correct! Player wins!");
                     // Player wins!
                     GameWon();
                 }
                 else
                 {
-                    Debug.Log("Some matches were incorrect. This try is complete and failed.");
                     // This try is complete and failed
                     FinishCurrentTry();
                 }
             }
-            else
-            {
-                Debug.Log($"Not all buttons used yet. Continue playing. (lockedButtons count: {lockedButtons.Count} < totalButtonsToMatch: {totalButtonsToMatch})");
-            }
         }
         else
         {
-            Debug.Log("Wrong match! Processing failure...");
-
             // Lock the button and lamp base with failure visual
             LockButtonFailure(selectedButton);
             LockLampFailure(lampBase, numberObject);
@@ -940,32 +839,23 @@ public class BasicButtonLampGame : MonoBehaviour
             // Add to locked lists
             lockedButtons.Add(selectedButton);
             lockedLampBases.Add(lampBase);
-            Debug.Log($"Added to locked lists - lockedButtons count: {lockedButtons.Count}, lockedLampBases count: {lockedLampBases.Count}");
 
             // Mark this try as failed
             currentTryFailed = true;
-            Debug.Log("Marked current try as failed");
 
             // Increment wrong buttons counter
             currentTryWrongButtons++;
-            Debug.Log($"Incremented wrong buttons counter to {currentTryWrongButtons}");
 
             // Check if all buttons are locked (try is complete)
             if (lockedButtons.Count >= totalButtonsToMatch)
             {
-                Debug.Log($"All buttons used (lockedButtons count: {lockedButtons.Count} >= totalButtonsToMatch: {totalButtonsToMatch})");
                 // This try is complete and failed
                 FinishCurrentTry();
-            }
-            else
-            {
-                Debug.Log($"Not all buttons used yet. Continue playing. (lockedButtons count: {lockedButtons.Count} < totalButtonsToMatch: {totalButtonsToMatch})");
             }
         }
 
         // Clear the button selection
         selectedButton = null;
-        Debug.Log("Cleared button selection");
     }
 
     // These methods have been removed as we no longer need to show the correct answer
@@ -975,15 +865,12 @@ public class BasicButtonLampGame : MonoBehaviour
     {
         if (button == null) return false;
 
-        Debug.Log($"Checking match: Button={button.name}, NumberValue={numberValue}");
-
         // First check our button-number mapping from the Inspector
         if (buttonNumberMapping != null)
         {
             bool isMatch = buttonNumberMapping.IsCorrectMatch(button, numberValue);
             if (isMatch)
             {
-                Debug.Log($"Match found: Button {button.name} → Number {numberValue} (from mapping)");
                 return true;
             }
         }
@@ -995,12 +882,10 @@ public class BasicButtonLampGame : MonoBehaviour
             bool isMatch = demoManager.IsCorrectMatch(button, numberValue);
             if (isMatch)
             {
-                Debug.Log($"Match found: Button {button.name} → Number {numberValue} (from demo manager)");
                 return true;
             }
         }
 
-        Debug.Log("No match found");
         return false;
     }
 
@@ -1059,8 +944,6 @@ public class BasicButtonLampGame : MonoBehaviour
     // Lock a button with success visual
     private void LockButtonSuccess(GameObject button)
     {
-        Debug.Log("Locking button with success: " + button.name);
-
         Renderer renderer = button.GetComponent<Renderer>();
         if (renderer != null)
         {
@@ -1109,8 +992,6 @@ public class BasicButtonLampGame : MonoBehaviour
     // Lock a button with failure visual
     private void LockButtonFailure(GameObject button)
     {
-        Debug.Log("Locking button with failure: " + button.name);
-
         Renderer renderer = button.GetComponent<Renderer>();
         if (renderer != null)
         {
@@ -1163,11 +1044,8 @@ public class BasicButtonLampGame : MonoBehaviour
     // Lock a lamp with success visual
     private void LockLampSuccess(GameObject lampBase, GameObject numberObject)
     {
-        Debug.Log("Locking lamp with success: " + lampBase.name);
-
         if (numberObject == null)
         {
-            Debug.LogError("Number object is null!");
             return;
         }
 
@@ -1183,20 +1061,13 @@ public class BasicButtonLampGame : MonoBehaviour
             // Apply green material
             renderer.material = greenMaterial;
         }
-        else
-        {
-            Debug.LogError("Number object has no renderer: " + numberObject.name);
-        }
     }
 
     // Lock a lamp with failure visual
     private void LockLampFailure(GameObject lampBase, GameObject numberObject)
     {
-        Debug.Log("Locking lamp with failure: " + lampBase.name);
-
         if (numberObject == null)
         {
-            Debug.LogError("Number object is null!");
             return;
         }
 
@@ -1212,10 +1083,6 @@ public class BasicButtonLampGame : MonoBehaviour
             // Apply red material
             renderer.material = redMaterial;
         }
-        else
-        {
-            Debug.LogError("Number object has no renderer: " + numberObject.name);
-        }
     }
 
 
@@ -1227,7 +1094,6 @@ public class BasicButtonLampGame : MonoBehaviour
     // Called when the player wins the game
     private void GameWon()
     {
-        Debug.Log("Game Won! All buttons matched correctly!");
         gameOver = true;
 
         // Record analytics for the winning try (which had 0 wrong buttons)
@@ -1262,7 +1128,6 @@ public class BasicButtonLampGame : MonoBehaviour
     // Called when the player loses the game
     private void GameLost()
     {
-        Debug.Log("Game Lost! Out of tries!");
         gameOver = true;
 
         // Show lose panel if available
@@ -1294,8 +1159,6 @@ public class BasicButtonLampGame : MonoBehaviour
     // Show analytics panel
     public void ShowAnalyticsPanel()
     {
-        Debug.Log("ShowAnalyticsPanel called");
-
         // Find analytics panel if it's null
         if (analyticsPanel == null)
         {
@@ -1306,7 +1169,6 @@ public class BasicButtonLampGame : MonoBehaviour
                 if (panel.name.ToLower().Contains("analytics"))
                 {
                     analyticsPanel = panel;
-                    Debug.Log("Found analytics panel by tag: " + panel.name);
                     break;
                 }
             }
@@ -1315,10 +1177,6 @@ public class BasicButtonLampGame : MonoBehaviour
             if (analyticsPanel == null)
             {
                 analyticsPanel = GameObject.Find("GameAnalyticsPanel");
-                if (analyticsPanel != null)
-                {
-                    Debug.Log("Found analytics panel by name: " + analyticsPanel.name);
-                }
             }
 
             if (analyticsPanel == null)
@@ -1354,7 +1212,6 @@ public class BasicButtonLampGame : MonoBehaviour
                     text.name.ToLower().Contains("back")))
                 {
                     escInstructionText = text;
-                    Debug.Log("Found ESC Instruction Text in analytics panel: " + text.name);
                     break;
                 }
             }
@@ -1376,8 +1233,6 @@ public class BasicButtonLampGame : MonoBehaviour
                 rectTransform.pivot = new Vector2(0.5f, 0);
                 rectTransform.anchoredPosition = new Vector2(0, 20);
                 rectTransform.sizeDelta = new Vector2(400, 50);
-
-                Debug.Log("Created new ESC Instruction Text");
             }
         }
 
@@ -1389,11 +1244,6 @@ public class BasicButtonLampGame : MonoBehaviour
             escInstructionText.fontSize = 24;
             escInstructionText.color = Color.yellow;
             escInstructionText.gameObject.SetActive(true);
-            Debug.Log("Updated ESC instruction text");
-        }
-        else
-        {
-            Debug.LogWarning("Could not create or find ESC instruction text!");
         }
 
         // Find the analytics text component
@@ -1404,7 +1254,6 @@ public class BasicButtonLampGame : MonoBehaviour
             if (analyticsTextObj != null)
             {
                 analyticsText = analyticsTextObj.GetComponent<TextMeshProUGUI>();
-                Debug.Log("Found analytics text by name: " + analyticsTextObj.name);
             }
             else
             {
@@ -1413,7 +1262,6 @@ public class BasicButtonLampGame : MonoBehaviour
                 if (allTexts.Length > 0)
                 {
                     analyticsText = allTexts[0];
-                    Debug.Log("Using first TextMeshProUGUI found in panel: " + analyticsText.name);
                 }
             }
         }
@@ -1423,14 +1271,12 @@ public class BasicButtonLampGame : MonoBehaviour
         if (fixer == null)
         {
             fixer = analyticsPanel.AddComponent<AnalyticsTextFixer>();
-            Debug.Log("Added AnalyticsTextFixer to analytics panel");
         }
 
         // Assign the analytics text to the fixer
         if (analyticsText != null)
         {
             fixer.analyticsText = analyticsText;
-            Debug.Log("Assigned analytics text to fixer");
         }
 
         // The fixer will handle the rest in its Start method
@@ -1499,14 +1345,11 @@ public class BasicButtonLampGame : MonoBehaviour
 
             // Set the text content
             analyticsText.text = sb.ToString();
-            Debug.Log("Analytics text updated successfully");
         }
         else
         {
             Debug.LogError("Could not find or create analytics text component!");
         }
-
-        Debug.Log("Analytics panel shown");
     }
 
     // Hide analytics panel
@@ -1526,7 +1369,6 @@ public class BasicButtonLampGame : MonoBehaviour
                     if (losePanel != null)
                     {
                         losePanel.SetActive(true);
-                        Debug.Log("Showing lose panel after hiding analytics panel");
                     }
                 }
                 else
@@ -1535,12 +1377,9 @@ public class BasicButtonLampGame : MonoBehaviour
                     if (winPanel != null)
                     {
                         winPanel.SetActive(true);
-                        Debug.Log("Showing win panel after hiding analytics panel");
                     }
                 }
             }
-
-            Debug.Log("Analytics panel hidden");
         }
         else
         {
@@ -1573,8 +1412,6 @@ public class BasicButtonLampGame : MonoBehaviour
     // Update analytics text with a better approach for two columns
     private void UpdateAnalyticsText()
     {
-        Debug.Log("UpdateAnalyticsText called");
-
         // Double-check if analyticsText is null
         if (analyticsText == null && analyticsPanel != null)
         {
@@ -1583,7 +1420,6 @@ public class BasicButtonLampGame : MonoBehaviour
             if (analyticsTextObj != null)
             {
                 analyticsText = analyticsTextObj.GetComponent<TextMeshProUGUI>();
-                Debug.Log("Found analytics text by name: " + analyticsTextObj.name);
             }
             else
             {
@@ -1594,10 +1430,6 @@ public class BasicButtonLampGame : MonoBehaviour
                     Debug.LogError("Could not find analytics text in panel!");
                     return;
                 }
-                else
-                {
-                    Debug.Log("Found analytics text in panel: " + analyticsText.name);
-                }
             }
 
             // Get or add the AnalyticsTextFixer component
@@ -1605,12 +1437,10 @@ public class BasicButtonLampGame : MonoBehaviour
             if (fixer == null)
             {
                 fixer = analyticsPanel.AddComponent<AnalyticsTextFixer>();
-                Debug.Log("Added AnalyticsTextFixer to analytics panel in UpdateAnalyticsText");
             }
 
             // Assign the analytics text to the fixer
             fixer.analyticsText = analyticsText;
-            Debug.Log("Assigned analytics text to fixer in UpdateAnalyticsText");
 
             // Force the fixer to run its setup
             fixer.Start();
@@ -1618,7 +1448,6 @@ public class BasicButtonLampGame : MonoBehaviour
 
         if (analyticsText != null)
         {
-            Debug.Log("Updating analytics text content");
 
             // Calculate total statistics first
             int totalWrongButtons = 0;
@@ -1704,7 +1533,6 @@ public class BasicButtonLampGame : MonoBehaviour
 
             // Set the text content
             analyticsText.text = sb.ToString();
-            Debug.Log("Analytics text updated successfully");
         }
         else
         {
@@ -1718,8 +1546,6 @@ public class BasicButtonLampGame : MonoBehaviour
     // This is the ONLY method that should be called when the player presses retry
     private void RetryGame()
     {
-        Debug.Log("RetryGame called - restarting game with full scene reload...");
-
         // Make sure cursor is visible before reloading
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
@@ -1733,7 +1559,6 @@ public class BasicButtonLampGame : MonoBehaviour
 
         // Get the current scene name
         string currentSceneName = SceneManager.GetActiveScene().name;
-        Debug.Log("Reloading current scene: " + currentSceneName);
 
         // Reload the current scene to restart everything including the demo
         SceneManager.LoadScene(currentSceneName);
@@ -1773,8 +1598,6 @@ public class BasicButtonLampGame : MonoBehaviour
 
             analyticsData.Add($"Current Try {wrongButtonsPerTry.Count + 1}: {currentCorrectButtons} correct, {currentTryWrongButtons} wrong");
         }
-
-        Debug.Log($"Saved {analyticsData.Count} analytics data entries");
     }
 
     // Go to main menu
@@ -1792,8 +1615,6 @@ public class BasicButtonLampGame : MonoBehaviour
     // Exit the game
     private void ExitGame()
     {
-        Debug.Log("Exiting game...");
-
         // In the editor, this will stop play mode
         #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
@@ -1809,8 +1630,6 @@ public class BasicButtonLampGame : MonoBehaviour
         // Ensure cursor is visible and unlocked
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-
-        Debug.Log("Cursor unlocked and made visible");
     }
 
     // Ensure cursor is visible and unlocked
@@ -1819,8 +1638,6 @@ public class BasicButtonLampGame : MonoBehaviour
         // Ensure cursor is visible
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
-
-        Debug.Log("Cursor visibility ensured");
     }
 
     // Public method to check if the game is over
@@ -1838,19 +1655,14 @@ public class BasicButtonLampGame : MonoBehaviour
         // Check if gameOver is still true
         if (gameOver)
         {
-            Debug.LogWarning("Game state check: gameOver is still true after delay. Forcing reset...");
             gameOver = false;
         }
 
         // Check if ForceGameStateReset is still true
         if (ForceGameStateReset)
         {
-            Debug.LogWarning("Game state check: ForceGameStateReset is still true after delay. Forcing reset...");
             ForceGameStateReset = false;
         }
-
-        // Log the current state
-        Debug.Log($"Delayed game state check - gameOver: {gameOver}, ForceGameStateReset: {ForceGameStateReset}");
     }
 
 

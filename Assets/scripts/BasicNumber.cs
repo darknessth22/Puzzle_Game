@@ -21,10 +21,6 @@ public class BasicNumber : MonoBehaviour
             // Pass both the lamp base (this object) and the number object
             gameManager.NumberClicked(gameObject, numberObject, numberValue);
         }
-        else
-        {
-            Debug.LogError("No game manager assigned to lamp base: " + gameObject.name);
-        }
     }
 
     // Called when the object is enabled

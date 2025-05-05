@@ -48,11 +48,6 @@ public class CustomCursor : MonoBehaviour
             // Make sure cursor is visible
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
-            Debug.Log("Custom cursor applied: " + cursorTexture.name);
-        }
-        else
-        {
-            Debug.LogWarning("No cursor texture assigned!");
         }
     }
 
@@ -60,7 +55,6 @@ public class CustomCursor : MonoBehaviour
     public void ResetToDefaultCursor()
     {
         Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
-        Debug.Log("Reset to default cursor");
     }
 
     // Toggle between custom and default cursor

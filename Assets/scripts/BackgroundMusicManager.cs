@@ -20,30 +20,29 @@ public class BackgroundMusicManager : MonoBehaviour
         if (instance == null)
         {
             instance = this;
-            
+
             // Don't destroy this object when loading a new scene
             if (dontDestroyOnLoad)
             {
                 DontDestroyOnLoad(gameObject);
             }
-            
+
             // Get or add audio source component
             audioSource = GetComponent<AudioSource>();
             if (audioSource == null)
             {
                 audioSource = gameObject.AddComponent<AudioSource>();
             }
-            
+
             // Configure audio source
             audioSource.clip = musicClip;
             audioSource.volume = volume;
             audioSource.loop = true;
-            
+
             // Play music if set to play on awake
             if (playOnAwake && musicClip != null)
             {
                 audioSource.Play();
-                Debug.Log("Background music started playing");
             }
         }
         else if (instance != this)
@@ -59,7 +58,6 @@ public class BackgroundMusicManager : MonoBehaviour
         if (audioSource != null && !audioSource.isPlaying && audioSource.clip != null)
         {
             audioSource.Play();
-            Debug.Log("Background music started playing");
         }
     }
 
@@ -69,7 +67,6 @@ public class BackgroundMusicManager : MonoBehaviour
         if (audioSource != null && audioSource.isPlaying)
         {
             audioSource.Stop();
-            Debug.Log("Background music stopped");
         }
     }
 
@@ -77,11 +74,10 @@ public class BackgroundMusicManager : MonoBehaviour
     public void SetVolume(float newVolume)
     {
         volume = Mathf.Clamp01(newVolume); // Ensure volume is between 0 and 1
-        
+
         if (audioSource != null)
         {
             audioSource.volume = volume;
-            Debug.Log($"Background music volume set to {volume}");
         }
     }
 
@@ -93,11 +89,10 @@ public class BackgroundMusicManager : MonoBehaviour
             bool wasPlaying = audioSource.isPlaying;
             audioSource.Stop();
             audioSource.clip = newClip;
-            
+
             if (wasPlaying)
             {
                 audioSource.Play();
-                Debug.Log($"Changed background music to {newClip.name}");
             }
         }
     }

@@ -35,7 +35,6 @@ public class GameInitializer : MonoBehaviour
             if (customCursor == null && gameObject != null)
             {
                 customCursor = gameObject.AddComponent<CustomCursor>();
-                Debug.Log("Added CustomCursor component to " + gameObject.name);
             }
         }
 
@@ -48,13 +47,11 @@ public class GameInitializer : MonoBehaviour
 
             // Apply the cursor immediately
             customCursor.SetCustomCursor();
-            Debug.Log("Custom cursor initialized locally");
         }
         else if (cursorTexture != null)
         {
             // If no CustomCursor component but we have a texture, set it directly
             Cursor.SetCursor(cursorTexture, hotSpot, CursorMode.Auto);
-            Debug.Log("Custom cursor set directly");
         }
     }
 
@@ -77,6 +74,6 @@ public class GameInitializer : MonoBehaviour
             Cursor.SetCursor(cursorTexture, hotSpot, CursorMode.Auto);
         }
 
-        Debug.Log("Cursor visibility enforced");
+
     }
 }

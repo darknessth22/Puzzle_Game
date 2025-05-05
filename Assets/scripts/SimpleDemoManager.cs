@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using TMPro;
 using UnityEngine.SceneManagement;
 
 public class SimpleDemoManager : MonoBehaviour
@@ -19,16 +18,9 @@ public class SimpleDemoManager : MonoBehaviour
     public float highlightDuration = 2.0f; // How long each pair is highlighted
     public float pauseBetweenPairs = 1.0f; // Pause between pairs
 
-    [Header("Audio")]
-    public AudioClip backgroundMusic;     // Background music to play during the game
-    public float musicVolume = 0.5f;      // Volume for background music
-
     [Header("Demo Sequence")]
     [Tooltip("If left empty, will automatically use all buttons from ButtonNumberMapping")]
     public GameObject[] demoSequence;     // Custom sequence of buttons to demonstrate
-
-    [Header("UI")]
-    public TextMeshProUGUI instructionText;
 
     // Game state tracking
 
@@ -48,9 +40,6 @@ public class SimpleDemoManager : MonoBehaviour
     {
         return isGameplayActive;
     }
-
-    // Audio source for background music
-    private AudioSource musicSource;
 
     // Button-to-number mapping component
     [Header("Button-Number Mapping")]
@@ -112,16 +101,9 @@ public class SimpleDemoManager : MonoBehaviour
 
     private void Start()
     {
-        Debug.Log("SimpleDemoManager Start - IsGameRestarting: " + IsGameRestarting);
-
         // Disabled - no highlight material needed
 
-        // Clear instruction text at the start
-        if (instructionText != null)
-        {
-            instructionText.text = "";
-            Debug.Log("Cleared instruction text at start");
-        }
+
 
         // Get buttons from ButtonNumberMapping
         List<GameObject> buttonList = new List<GameObject>();
@@ -160,11 +142,7 @@ public class SimpleDemoManager : MonoBehaviour
         {
             // If no custom sequence is provided, create a default one with all buttons
             demoSequence = allButtons;
-            Debug.Log("Using default demo sequence with all buttons");
         }
-
-        // Setup background music
-        SetupBackgroundMusic();
 
         // Start the demo after a delay
         StartCoroutine(StartDemoWithDelay());
@@ -178,38 +156,10 @@ public class SimpleDemoManager : MonoBehaviour
         demoCompleted = false;
     }
 
-    private void SetupBackgroundMusic()
-    {
-        // Check if we already have an AudioSource component
-        musicSource = GetComponent<AudioSource>();
 
-        // If not, add one
-        if (musicSource == null)
-        {
-            musicSource = gameObject.AddComponent<AudioSource>();
-        }
-
-        // Configure the audio source
-        if (musicSource != null && backgroundMusic != null)
-        {
-            musicSource.clip = backgroundMusic;
-            musicSource.volume = musicVolume;
-            musicSource.loop = true;
-            musicSource.playOnAwake = false;
-
-            // Play the background music
-            musicSource.Play();
-            Debug.Log("Started playing background music");
-        }
-        else if (backgroundMusic == null)
-        {
-            Debug.LogWarning("No background music clip assigned");
-        }
-    }
 
     private IEnumerator StartDemoWithDelay()
     {
-        Debug.Log($"Waiting {initialSceneDelay} seconds before starting demo...");
         yield return new WaitForSeconds(initialSceneDelay);
 
         // Start the demo sequence
@@ -219,12 +169,7 @@ public class SimpleDemoManager : MonoBehaviour
         isDemoRunning = false;
         isGameplayActive = true;
 
-        // Make sure instruction text is still clear
-        if (instructionText != null)
-        {
-            instructionText.text = "";
-            Debug.Log("Kept instruction text clear after demo");
-        }
+
 
         // Reset the game state in BasicButtonLampGame
         ResetGameManagerState();
@@ -233,7 +178,6 @@ public class SimpleDemoManager : MonoBehaviour
     // Run the demo sequence
     private IEnumerator RunDemoSequence()
     {
-        Debug.Log("Starting demo sequence...");
         isDemoRunning = true;
 
         // Wait for the demo delay
@@ -244,8 +188,6 @@ public class SimpleDemoManager : MonoBehaviour
         {
             if (button == null) continue;
 
-            Debug.Log($"Demonstrating button: {button.name}");
-
             // Get the corresponding number for this button from our mapping
             int numberValue = -1;
             GameObject numberObject = null;
@@ -255,11 +197,6 @@ public class SimpleDemoManager : MonoBehaviour
             {
                 numberValue = buttonNumberMapping.GetNumberForButton(button);
                 numberObject = buttonNumberMapping.GetNumberObjectForButton(button);
-
-                if (numberValue != -1 && numberObject != null)
-                {
-                    Debug.Log($"Using mapping from SimpleDemoManager: Button {button.name} -> Number {numberValue}");
-                }
             }
 
             // If not found, try to get mapping from BasicButtonLampGame
@@ -271,17 +208,12 @@ public class SimpleDemoManager : MonoBehaviour
                     numberValue = gameManager.buttonNumberMapping.GetNumberForButton(button);
                     numberObject = gameManager.buttonNumberMapping.GetNumberObjectForButton(button);
 
-                    if (numberValue != -1 && numberObject != null)
-                    {
-                        Debug.Log($"Using mapping from BasicButtonLampGame: Button {button.name} -> Number {numberValue}");
-                    }
                 }
             }
 
             // If still not found, skip this button
             if (numberValue == -1 || numberObject == null)
             {
-                Debug.LogWarning($"No mapping found for button {button.name} in any ButtonNumberMapping component");
                 continue; // Skip this button if no mapping is found
             }
 
@@ -301,7 +233,6 @@ public class SimpleDemoManager : MonoBehaviour
 
                 // Apply cyan material to button
                 buttonRenderer.material = cyanMaterial;
-                Debug.Log($"Applied cyan material to button: {button.name}");
             }
 
             // Play button animation and sound
@@ -327,7 +258,6 @@ public class SimpleDemoManager : MonoBehaviour
 
                     // Apply cyan material to number
                     numberRenderer.material = cyanMaterial;
-                    Debug.Log($"Applied cyan material to number: {numberObject.name}");
                 }
             }
 
@@ -338,21 +268,18 @@ public class SimpleDemoManager : MonoBehaviour
             if (buttonRenderer != null && originalButtonMaterial != null)
             {
                 buttonRenderer.material = originalButtonMaterial;
-                Debug.Log($"Reset material for button: {button.name}");
             }
 
             // Reset the number material
             if (numberRenderer != null && originalNumberMaterial != null)
             {
                 numberRenderer.material = originalNumberMaterial;
-                Debug.Log($"Reset material for number: {numberObject.name}");
             }
 
             // Wait for the pause between pairs
             yield return new WaitForSeconds(pauseBetweenPairs);
         }
 
-        Debug.Log("Demo sequence completed");
         isDemoRunning = false;
         isGameplayActive = true;
         demoCompleted = true;
@@ -398,12 +325,9 @@ public class SimpleDemoManager : MonoBehaviour
             {
                 // Try to play the "switch" state
                 buttonAnimator.Play("switch", 0, 0f);
-                Debug.Log($"Playing animation for button {button.name}");
             }
-            catch (System.Exception e)
+            catch (System.Exception)
             {
-                Debug.LogWarning($"Failed to play 'switch' animation: {e.Message}");
-
                 // If that fails, try to play any state
                 if (buttonAnimator.runtimeAnimatorController != null)
                 {
@@ -411,14 +335,9 @@ public class SimpleDemoManager : MonoBehaviour
                     if (clips.Length > 0)
                     {
                         buttonAnimator.Play(clips[0].name, 0, 0f);
-                        Debug.Log($"Playing fallback animation {clips[0].name} for button {button.name}");
                     }
                 }
             }
-        }
-        else
-        {
-            Debug.LogWarning($"No animator found on button {button.name}");
         }
     }
 
@@ -448,39 +367,10 @@ public class SimpleDemoManager : MonoBehaviour
         if (audioSource != null && buttonClickSound != null)
         {
             audioSource.PlayOneShot(buttonClickSound, volume);
-            Debug.Log($"Playing sound for button {button.name}");
-        }
-        else if (buttonClickSound == null)
-        {
-            Debug.LogWarning($"No button click sound assigned for button {button.name}");
-        }
-        else if (audioSource == null)
-        {
-            Debug.LogWarning($"No audio source found for button {button.name}");
         }
     }
 
-    // Public method to adjust music volume
-    public void SetMusicVolume(float volume)
-    {
-        musicVolume = Mathf.Clamp01(volume); // Ensure volume is between 0 and 1
 
-        if (musicSource != null)
-        {
-            musicSource.volume = musicVolume;
-            Debug.Log($"Background music volume set to {musicVolume}");
-        }
-    }
-
-    // Called when the object is destroyed
-    private void OnDestroy()
-    {
-        // Clean up resources if needed
-        if (musicSource != null)
-        {
-            musicSource.Stop();
-        }
-    }
 
     // Set up game manager references for all buttons and lamp bases
     private void SetupButtonGameManagerReferences()
@@ -490,7 +380,6 @@ public class SimpleDemoManager : MonoBehaviour
 
         if (gameManager == null)
         {
-            Debug.LogError("No BasicButtonLampGame found in the scene!");
             return;
         }
 
@@ -524,7 +413,6 @@ public class SimpleDemoManager : MonoBehaviour
             if (basicButton != null)
             {
                 basicButton.gameManager = gameManager;
-                Debug.Log($"Set game manager reference for button: {btn.name}");
             }
         }
 
@@ -535,7 +423,6 @@ public class SimpleDemoManager : MonoBehaviour
             if (lampBase != null)
             {
                 lampBase.gameManager = gameManager;
-                Debug.Log($"Set game manager reference for lamp base: {lampBase.gameObject.name}");
             }
         }
     }
@@ -548,7 +435,6 @@ public class SimpleDemoManager : MonoBehaviour
 
         if (gameManager == null)
         {
-            Debug.LogError("No BasicButtonLampGame found in the scene!");
             return;
         }
 
@@ -569,46 +455,28 @@ public class SimpleDemoManager : MonoBehaviour
             if (gameOverField != null)
             {
                 gameOverField.SetValue(gameManager, false);
-                Debug.Log("Successfully reset gameOver flag to false");
-            }
-            else
-            {
-                Debug.LogWarning("Could not find gameOver field in BasicButtonLampGame");
             }
         }
-        catch (System.Exception e)
+        catch (System.Exception)
         {
-            Debug.LogError("Error resetting gameOver flag: " + e.Message);
+            // Silently fail if reflection doesn't work
         }
-
-        Debug.Log("Game manager state reset after demo completion");
     }
 
     // Public method to restart the game without reloading the scene
     public void RestartDemo()
     {
-        Debug.Log("RestartDemo called - starting game without demo");
-
         // Reset state
         isDemoRunning = false;
         isGameplayActive = true;
 
         // Reset all objects to their original state
         ResetAllObjects();
-
-        // Keep instruction text clear
-        if (instructionText != null)
-        {
-            instructionText.text = "";
-            Debug.Log("Kept instruction text clear in RestartDemo");
-        }
     }
 
     // Reset all objects to their original state
     private void ResetAllObjects()
     {
-        Debug.Log("Resetting all objects to original state");
-
         // Reset all number objects from ButtonNumberMapping
         if (buttonNumberMapping != null)
         {
@@ -623,7 +491,6 @@ public class SimpleDemoManager : MonoBehaviour
                         Material defaultMaterial = new Material(Shader.Find("Standard"));
                         defaultMaterial.color = Color.white;
                         renderer.material = defaultMaterial;
-                        Debug.Log($"Reset material for number object: {pair.numberObject.name}");
                     }
                 }
             }
@@ -644,7 +511,6 @@ public class SimpleDemoManager : MonoBehaviour
                         Material defaultMaterial = new Material(Shader.Find("Standard"));
                         defaultMaterial.color = Color.white;
                         renderer.material = defaultMaterial;
-                        Debug.Log($"Reset material for number object from game manager: {pair.numberObject.name}");
                     }
                 }
             }
@@ -661,31 +527,16 @@ public class SimpleDemoManager : MonoBehaviour
             if (buttonNumberMapping == null)
             {
                 buttonNumberMapping = gameObject.AddComponent<ButtonNumberMapping>();
-                Debug.Log("Added ButtonNumberMapping component to SimpleDemoManager");
             }
         }
 
         // Make sure the mapping dictionaries are initialized
         buttonNumberMapping.RebuildMappingDictionaries();
-
-        // Log the current mappings
-        List<ButtonNumberPair> pairs = buttonNumberMapping.GetAllPairs();
-        Debug.Log($"Using {pairs.Count} button-number mappings from Inspector");
-
-        foreach (var pair in pairs)
-        {
-            if (pair.button != null)
-            {
-                Debug.Log($"Mapping: Button {pair.button.name} -> Number {pair.numberValue}");
-            }
-        }
     }
 
     // Public method to completely reset the demo
     public void ResetDemo()
     {
-        Debug.Log("ResetDemo called - resetting demo state");
-
         // Reset state flags
         isDemoRunning = false;
         isGameplayActive = false;
@@ -699,7 +550,5 @@ public class SimpleDemoManager : MonoBehaviour
 
         // Start the demo sequence again
         StartCoroutine(StartDemoWithDelay());
-
-        Debug.Log("Demo reset complete - demo will start again after delay");
     }
 }
