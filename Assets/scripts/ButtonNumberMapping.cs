@@ -24,16 +24,6 @@ public class ButtonNumberPair
     }
 }
 
-/// <summary>
-/// This component manages the mappings between buttons and number objects.
-/// To use this component:
-/// 1. Add it to a GameObject in the scene
-/// 2. In the Inspector, add entries to the Button-Number Mappings list
-/// 3. For each entry, assign:
-///    - The button GameObject
-///    - The number value (1-10)
-///    - The number object that should light up
-/// </summary>
 public class ButtonNumberMapping : MonoBehaviour
 {
     [Header("Button-Number Mappings")]
@@ -41,13 +31,11 @@ public class ButtonNumberMapping : MonoBehaviour
     [SerializeField]
     public List<ButtonNumberPair> buttonNumberPairs = new List<ButtonNumberPair>();
 
-    // Dictionary for faster lookups
     private Dictionary<GameObject, ButtonNumberPair> buttonToPairMap = new Dictionary<GameObject, ButtonNumberPair>();
     private Dictionary<int, ButtonNumberPair> numberToPairMap = new Dictionary<int, ButtonNumberPair>();
 
     private void Awake()
     {
-        // Initialize the dictionaries
         RebuildMappingDictionaries();
     }
 
@@ -69,24 +57,19 @@ public class ButtonNumberMapping : MonoBehaviour
 
     public void SetMapping(GameObject button, int numberValue, GameObject numberObject)
     {
-        // Check if this button already has a mapping
         ButtonNumberPair existingPair = null;
         if (buttonToPairMap.TryGetValue(button, out existingPair))
         {
-            // Update the existing pair
             existingPair.numberValue = numberValue;
             existingPair.numberObject = numberObject;
 
-            // Update the number mapping
             numberToPairMap[numberValue] = existingPair;
         }
         else
         {
-            // Create a new pair
             var newPair = new ButtonNumberPair(button, numberValue, numberObject);
             buttonNumberPairs.Add(newPair);
 
-            // Add to dictionaries
             buttonToPairMap[button] = newPair;
             numberToPairMap[numberValue] = newPair;
         }
@@ -109,7 +92,7 @@ public class ButtonNumberMapping : MonoBehaviour
             return pair.numberValue;
         }
 
-        return -1; // No mapping found
+        return -1;
     }
 
     public GameObject GetButtonForNumber(int numberValue)
@@ -120,7 +103,7 @@ public class ButtonNumberMapping : MonoBehaviour
             return pair.button;
         }
 
-        return null; // No mapping found
+        return null;
     }
 
     public GameObject GetNumberObjectForButton(GameObject button)
@@ -133,7 +116,7 @@ public class ButtonNumberMapping : MonoBehaviour
             return pair.numberObject;
         }
 
-        return null; // No mapping found
+        return null;
     }
 
     public GameObject GetNumberObjectForNumber(int numberValue)
@@ -144,7 +127,7 @@ public class ButtonNumberMapping : MonoBehaviour
             return pair.numberObject;
         }
 
-        return null; // No mapping found
+        return null;
     }
 
     public bool IsCorrectMatch(GameObject button, int numberValue)
@@ -157,14 +140,11 @@ public class ButtonNumberMapping : MonoBehaviour
             return pair.numberValue == numberValue;
         }
 
-        return false; // No mapping found
+        return false;
     }
 
-    // Get all button-number pairs
     public List<ButtonNumberPair> GetAllPairs()
     {
         return new List<ButtonNumberPair>(buttonNumberPairs);
     }
-
-    // This method has been removed as mappings are now defined in the Inspector
 }

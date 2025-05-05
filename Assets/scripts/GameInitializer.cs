@@ -16,55 +16,43 @@ public class GameInitializer : MonoBehaviour
 
     private void Awake()
     {
-        // Initialize our cursor
         InitializeLocalCursor();
-
-        // Start a coroutine to ensure cursor stays visible
         StartCoroutine(EnsureCursorVisible());
     }
 
     private void InitializeLocalCursor()
     {
-        // Initialize custom cursor if not already present
         if (customCursor == null)
         {
-            // Check if there's already a CustomCursor component in the scene
             customCursor = FindObjectOfType<CustomCursor>();
 
-            // If not found, add one to this GameObject
             if (customCursor == null && gameObject != null)
             {
                 customCursor = gameObject.AddComponent<CustomCursor>();
             }
         }
 
-        // Set cursor texture and hotspot
         if (customCursor != null && cursorTexture != null)
         {
             customCursor.cursorTexture = cursorTexture;
             customCursor.hotSpot = hotSpot;
             customCursor.useCustomCursor = true;
 
-            // Apply the cursor immediately
             customCursor.SetCustomCursor();
         }
         else if (cursorTexture != null)
         {
-            // If no CustomCursor component but we have a texture, set it directly
             Cursor.SetCursor(cursorTexture, hotSpot, CursorMode.Auto);
         }
     }
 
     private IEnumerator EnsureCursorVisible()
     {
-        // Wait for end of frame to let other scripts initialize
         yield return new WaitForEndOfFrame();
 
-        // Make sure cursor is visible and unlocked
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
 
-        // If we have a custom cursor, apply it again to ensure it's used
         if (customCursor != null && customCursor.cursorTexture != null)
         {
             customCursor.SetCustomCursor();
@@ -73,7 +61,5 @@ public class GameInitializer : MonoBehaviour
         {
             Cursor.SetCursor(cursorTexture, hotSpot, CursorMode.Auto);
         }
-
-
     }
 }
